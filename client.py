@@ -38,13 +38,14 @@ class Client:
             for (a_prime, data_prime) in S:
                 if self.server.P(x, l) == self.server.P(self.position[a_prime], l):
                     S_prime[a_prime] = data_prime
-            S_prime = _choose_n_blocks(min(len(S_prime), self.Z))
+            # choose min(|S_prime}, Z) blocks from S_prime (not explicitly randomized for now, should verify this is ok)
+            S_prime = [for _ in range(min(len(S_prime), Z))]
         
     def _uniform(self, n):
         return random.randint(0, n)
 
-    def _choose_n_blocks(n):
-        # choose n blocks randomly
+    def _choose_n_blocks(dicn):
+        # choose n blocks from stash (doesn't have to be randomized)
         pass
 
     def _encrypt(self, data):
