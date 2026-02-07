@@ -3,8 +3,8 @@ class Server:
     def __init__(self, data):
         self.data = data
     
-    def read_bucket(self, i):
+    def read_block(self, i):
         return self.data[i]
     
-    def write_bucket(self, i, block):
+    def write_block(self, i, block):
         self.data[i] = block

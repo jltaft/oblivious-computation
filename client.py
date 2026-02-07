@@ -6,8 +6,6 @@ from server import Server
 
 class Client:
     def __init__(self, N, L=None, B=32768, Z=4):
-        # check that N is not too big given L and Z
-
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
         if L is None:
@@ -74,20 +72,41 @@ class Client:
         return [self._create_dummy_block() for _ in range(self._total_N)]
     
     def _create_dummy_block(self):
-        return self._encrypt_block(-1, "")
+        return self._encrypt_block((-1, ""))
 
     def _P(self, x, l):
-        # get bucket index of block with position x at level l
+        # TODO get bucket index of path x at level l
         pass
     
-    def _read_bucket(bucket):
-        pass
+    def _read_bucket(self, bucket):
+        bucket_blocks = {}
+        for i in range(self.Z):
+            encrypted_block = self.server.read_block(bucket + i)
+            a, data = self._decrypt_block(encrypted_block)
+            # TODO for now not storing dummy blocks in stash
+            # need to check if this is ok, since paper did say
 
-    def _write_bucket(bucket, data):
-        pass
+            # For ReadBucket(bucket),
+            # the client reads all Z blocks (including any dummy blocks) from the bucket stored on the server.
+            # Blocks are decrypted as they are read
 
-    def _encrypt_block(self, a, data):
-        block = json.dumps((a, data)).encode("utf-8")
+            # but since we need to reencrypt dummy blocks anyways especially after the dummy block is popped from the stash
+            # may as well not store it?
+
+            if a != -1: # not dummy
+                bucket_blocks[a] = data
+        return bucket_blocks
+
+    def _write_bucket(self, bucket, data):
+        for i, block in enumerate(data.items()):
+            encrypted_block = self._encrypt_block(block)
+            self.server.write_block(bucket + i, encrypted_block)
+        for i in range(len(data), self.Z):
+            encrypted_block = self._create_dummy_block()
+            self.server.write_block(bucket + i, encrypted_block)
+
+    def _encrypt_block(self, block): # block should be (a, data)
+        byte_block = json.dumps(block).encode("utf-8")
         padded_block = self._pad(block, self.B)
         if len(block) > self.B:
             raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
@@ -97,7 +116,7 @@ class Client:
 
     def _decrypt_block(self, block):
         padded_decrypted_byte_block = self._decrypt(block)
-        # need a better way to remove padding
+        # TODO need a better way to remove padding
         # I saw something that last byte should be the amount of padding,
         # but what if amount of padding is more than 255?
         # Do we need to choose how many trailing bytes represent amount of padding based on total_N?
