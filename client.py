@@ -1,6 +1,7 @@
 import random
 import math
 import json
+import sys
 from server import Server
 
 
@@ -29,19 +30,25 @@ class Client:
 
     def access(self, op, a, new_data=None):
         # a is block id
-        x = self.position(a)
+        x = self.position[a]
         self.position[a] = self._uniform_random(2 ** self.L - 1)
         for l in range(self.L + 1):
-            S = S | (self._read_bucket(self._P(x, l)))
+            read = (self._read_bucket(self._P(x, l)))
+            self.S = self.S | read
+
+        print("resulting S: ", self.S)
         
         if op == "write":
-            S[a] = new_data
-            data = S.get(a) # None default if a is not in S
+            if new_data is None:
+                raise ValueError("write op needs new_data")
+            self.S[a] = new_data
+            data = self.S.get(a) # None default if a is not in S
         elif op == "read":
             try:
-                data = S[a]
+                data = self.S[a]
             except KeyError as e:
-                print(f"Block not found in stash {e}")
+                print("stash: ", self.S)
+                print(f"Block not found in stash {e}", file=sys.stderr)
                 raise
         else:
             raise ValueError(f"Invalid op {op}")
@@ -49,11 +56,13 @@ class Client:
         for l in range(self.L, -1, -1):
             S_prime = {}
             # choose min(|S_prime}, Z) blocks from S_prime
-            for a_prime in S.keys():
+            for a_prime in self.S.keys():
                 if self._P(x, l) == self._P(self.position[a_prime], l):
-                    S_prime[a_prime] = S.pop[a_prime]
+                    S_prime[a_prime] = self.S[a_prime]
                     if len(S_prime) >= self.Z:
                         break
+            for a_prime in S_prime.keys():
+                del self.S[a_prime]
             self._write_bucket(self._P(x, l), S_prime)
         
         return data
@@ -95,6 +104,8 @@ class Client:
 
             if a != -1: # not dummy
                 bucket_blocks[a] = data
+
+        print("bucket_blocks: ", bucket_blocks)
         return bucket_blocks
 
     def _write_bucket(self, bucket, data):
@@ -107,10 +118,9 @@ class Client:
 
     def _encrypt_block(self, block): # block should be (a, data)
         byte_block = json.dumps(block).encode("utf-8")
-        padded_block = self._pad(block, self.B)
-        if len(block) > self.B:
-            raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
-        padded_block = block + b"\x00" * (self.B - len(block)) # need to change (see _decrypt_block comment)
+        if len(byte_block) > self.B:
+            raise ValueError(f"Block size {len(byte_block)} is larger than B={self.B}")
+        padded_block = byte_block + b"\x00" * (self.B - len(byte_block)) # need to change (see _decrypt_block comment)
         encrypted_block = self._encrypt(padded_block)
         return encrypted_block
 
