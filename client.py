@@ -8,12 +8,12 @@ class Client:
         # check that N is not too big given L and Z
 
         if N <= 0:
-            raise ValueError("N is not positive")
+            raise ValueError(f"N={N} is not positive")
         if L is None:
             L = int(math.ceil(math.log(math.ceil(N // Z), 2))) + 1 # TODO double check this works
         total_N = (2 ** L - 1) * Z
         if N > total_N:
-            raise ValueError("N is too big given L and Z")
+            raise ValueError(f"N={N} is too big given L={L} and Z={Z} (total_N={total_N})")
        
         self.N = N # total # blocks outsourced to server (excluding dummy blocks)
         self._total_N = total_N # total # blocks stored on server (including dummy blocks)
@@ -37,10 +37,15 @@ class Client:
         if op == "write":
             S[a] = new_data
             # a might not be in S (ex if all blocks were dummy)
+            data = S.get(a) # None default
         elif op == "read":
-            data = S[a]
+            try:
+                data = S[a]
+            except KeyError as e:
+                print(f"Block not found in stash {e}")
+                raise
         else:
-            raise ValueError("Invalid op")
+            raise ValueError(f"Invalid op {op}")
         
         for l in range(self.L, -1, -1):
             S_prime = {}
