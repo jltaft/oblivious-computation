@@ -32,6 +32,8 @@ class Client:
         # a is block id
         x = self.position[a]
         self.position[a] = self._uniform_random(2 ** self.L - 1)
+        
+        # reads each bucket on the path and adds to stash
         for l in range(self.L + 1):
             read = (self._read_bucket(self._P(x, l)))
             self.S = self.S | read
@@ -39,8 +41,8 @@ class Client:
         if op == "write":
             if new_data is None:
                 raise ValueError("write op needs new_data")
-            self.S[a] = new_data
             data = self.S.get(a) # None default if a is not in S
+            self.S[a] = new_data
         elif op == "read":
             try:
                 data = self.S[a]
@@ -107,6 +109,10 @@ class Client:
 
         return bucket_blocks
 
+    # _write_bucket write data back to bucket and pads with dummy blocks if needed
+    # Inputs:
+    #   bucket - 
+    #   data - 
     def _write_bucket(self, bucket, data):
         for i, block in enumerate(data.items()):
             encrypted_block = self._encrypt_block(block)
