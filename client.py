@@ -77,12 +77,13 @@ class Client:
         return self._encrypt_block(-1, "")
 
     def _P(self, x, l):
+        # get bucket index of block with position x at level l
         pass
     
-    def _read_bucket():
+    def _read_bucket(bucket):
         pass
 
-    def _write_bucket():
+    def _write_bucket(bucket, data):
         pass
 
     def _encrypt_block(self, a, data):
