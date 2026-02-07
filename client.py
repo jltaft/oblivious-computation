@@ -35,8 +35,6 @@ class Client:
         for l in range(self.L + 1):
             read = (self._read_bucket(self._P(x, l)))
             self.S = self.S | read
-
-        print("resulting S: ", self.S)
         
         if op == "write":
             if new_data is None:
@@ -47,7 +45,6 @@ class Client:
             try:
                 data = self.S[a]
             except KeyError as e:
-                print("stash: ", self.S)
                 print(f"Block not found in stash {e}", file=sys.stderr)
                 raise
         else:
@@ -63,7 +60,10 @@ class Client:
                         break
             for a_prime in S_prime.keys():
                 del self.S[a_prime]
+            print("before write server state: ", [self._decrypt_block(block) for block in self.server.data])
+            print("selected blocks to write: ", S_prime)
             self._write_bucket(self._P(x, l), S_prime)
+            print("after write server state: ", [self._decrypt_block(block) for block in self.server.data])
         
         return data
     
@@ -105,7 +105,6 @@ class Client:
             if a != -1: # not dummy
                 bucket_blocks[a] = data
 
-        print("bucket_blocks: ", bucket_blocks)
         return bucket_blocks
 
     def _write_bucket(self, bucket, data):
