@@ -1,5 +1,6 @@
 import random
 import math
+import json
 from server import Server
 
 
@@ -36,8 +37,7 @@ class Client:
         
         if op == "write":
             S[a] = new_data
-            # a might not be in S (ex if all blocks were dummy)
-            data = S.get(a) # None default
+            data = S.get(a) # None default if a is not in S
         elif op == "read":
             try:
                 data = S[a]
@@ -60,21 +60,21 @@ class Client:
         return data
     
     def _initialize_position(self):
-        # returns an initizlied position map
+        # returns an initialized position map
         position = {}
         for i in range(self.N):
-            position[i] = self._uniform_random(2 ** self.L - 1)
+            position[i] = self._uniform_random(2 ** self.L - 1) # 0 to num leafs - 1 (inclusive)
         return position
-
+    
     def _uniform_random(self, n):
         # return a uniform random int from 0 to n inclusive
         return random.randint(0, n)
     
-    def _create_dummy_block(self):
-        pass
+    def _generate_initial_data(self):
+        return [self._create_dummy_block() for _ in range(self._total_N)]
     
-    def _generate_initial_data(self, N, L, B, Z):
-        pass
+    def _create_dummy_block(self):
+        return self._encrypt_block(-1, "")
 
     def _P(self, x, l):
         pass
@@ -85,8 +85,29 @@ class Client:
     def _write_bucket():
         pass
 
+    def _encrypt_block(self, a, data):
+        block = json.dumps((a, data)).encode("utf-8")
+        padded_block = self._pad(block, self.B)
+        if len(block) > self.B:
+            raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
+        padded_block = block + b"\x00" * (self.B - len(block)) # need to change (see _decrypt_block comment)
+        encrypted_block = self._encrypt(padded_block)
+        return encrypted_block
+
+    def _decrypt_block(self, block):
+        padded_decrypted_byte_block = self._decrypt(block)
+        # need a better way to remove padding
+        # I saw something that last byte should be the amount of padding,
+        # but what if amount of padding is more than 255?
+        # Do we need to choose how many trailing bytes represent amount of padding based on total_N?
+        # for now, just removing trailing \x00 but it's bad
+        decrypted_byte_block = padded_decrypted_byte_block.rstrip(b"\x00")
+        decrypted_block = decrypted_byte_block.decode("utf-8")
+        a, data = json.loads(decrypted_block)
+        return a, data
+
     def _encrypt(self, data):
-        pass
+        return data # for now, identity
 
     def _decrypt(self, data):
-        pass
+        return data # for now, identity
