@@ -8,9 +8,10 @@ class Client:
     def __init__(self, N, L=None, B=32768, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
+        # height is 0 of tree with just root node
         if L is None:
-            L = int(math.ceil(math.log(math.ceil(N // Z), 2))) + 1 # TODO double check this works
-        total_N = (2 ** L - 1) * Z
+            L = int(math.ceil(math.log(math.ceil(N // Z), 2))) # TODO double check this works
+        total_N = (2 ** (L + 1) - 1) * Z
         if N > total_N:
             raise ValueError(f"N={N} is too big given L={L} and Z={Z} (total_N={total_N})")
        
@@ -29,8 +30,8 @@ class Client:
     def access(self, op, a, new_data=None):
         # a is block id
         x = self.position(a)
-        self.position[a] = self._uniform_random(self.L - 1)
-        for l in range(self.L):
+        self.position[a] = self._uniform_random(2 ** self.L - 1)
+        for l in range(self.L + 1):
             S = S | (self._read_bucket(self._P(x, l)))
         
         if op == "write":
@@ -75,9 +76,8 @@ class Client:
         return self._encrypt_block((-1, ""))
 
     def _P(self, x, l):
-        # TODO get bucket index of path x at level l
-        pass
-    
+        return 2 ** l - 1 + x // 2 ** (self.L - l)
+
     def _read_bucket(self, bucket):
         bucket_blocks = {}
         for i in range(self.Z):
