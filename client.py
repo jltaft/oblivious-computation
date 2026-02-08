@@ -38,6 +38,7 @@ class Client:
             read = (self._read_bucket(self._P(x, l)))
             self.S = self.S | read
         
+
         if op == "write":
             if new_data is None:
                 raise ValueError("write op needs new_data")
@@ -51,7 +52,6 @@ class Client:
                 raise
         else:
             raise ValueError(f"Invalid op {op}")
-        
         for l in range(self.L, -1, -1):
             S_prime = {}
             # choose min(|S_prime}, Z) blocks from S_prime
@@ -62,10 +62,13 @@ class Client:
                         break
             for a_prime in S_prime.keys():
                 del self.S[a_prime]
-            print("before write server state: ", [self._decrypt_block(block) for block in self.server.data])
-            print("selected blocks to write: ", S_prime)
+            # print("before write server state: ", [self._decrypt_block(block) for block in self.server.data])
+            # print("selected blocks to write: ", S_prime)
+
             self._write_bucket(self._P(x, l), S_prime)
-            print("after write server state: ", [self._decrypt_block(block) for block in self.server.data])
+
+            # print("after write server state: ", [self._decrypt_block(block) for block in self.server.data])
+        # print("stash after writeback:", self.S)
         
         return data
     
@@ -87,7 +90,7 @@ class Client:
         return self._encrypt_block((-1, ""))
 
     def _P(self, x, l):
-        return 2 ** l - 1 + x // 2 ** (self.L - l)
+        return (2 ** l - 1 + x // 2 ** (self.L - l)) * self.Z
 
     def _read_bucket(self, bucket):
         bucket_blocks = {}
