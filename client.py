@@ -11,7 +11,8 @@ class Client:
             raise ValueError(f"N={N} is not positive")
         # height is 0 of tree with just root node
         if L is None:
-            L = int(math.ceil(math.log(math.ceil(N // Z), 2))) # TODO double check this works
+            L = int(math.ceil(math.log(max(1, math.ceil(N / Z)), 2)))
+            # L = int(math.ceil(math.log(math.ceil(N // Z), 2))) # TODO double check this works
         total_N = (2 ** (L + 1) - 1) * Z
         if N > total_N:
             raise ValueError(f"N={N} is too big given L={L} and Z={Z} (total_N={total_N})")
