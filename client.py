@@ -108,9 +108,6 @@ class Client:
         return bucket_blocks
 
     # _write_bucket write data back to bucket and pads with dummy blocks if needed
-    # Inputs:
-    #   bucket - 
-    #   data - 
     def _write_bucket(self, bucket, data):
         for i, block in enumerate(data.items()):
             encrypted_block = self._encrypt_block(block)
