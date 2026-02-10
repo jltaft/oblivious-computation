@@ -12,7 +12,6 @@ class Client:
         # height is 0 of tree with just root node
         if L is None:
             L = int(math.ceil(math.log(max(1, math.ceil(N / Z)), 2)))
-            # L = int(math.ceil(math.log(math.ceil(N // Z), 2))) # TODO double check this works
         total_N = (2 ** (L + 1) - 1) * Z
         if N > total_N:
             raise ValueError(f"N={N} is too big given L={L} and Z={Z} (total_N={total_N})")
@@ -63,13 +62,8 @@ class Client:
                         break
             for a_prime in S_prime.keys():
                 del self.S[a_prime]
-            # print("before write server state: ", [self._decrypt_block(block) for block in self.server.data])
-            # print("selected blocks to write: ", S_prime)
 
             self._write_bucket(self._P(x, l), S_prime)
-
-            # print("after write server state: ", [self._decrypt_block(block) for block in self.server.data])
-        # print("stash after writeback:", self.S)
         
         return data
     
