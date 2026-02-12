@@ -2,6 +2,7 @@ import random
 import math
 import json
 import sys
+from cryptography.fernet import Fernet
 from server import Server
 
 
@@ -24,6 +25,10 @@ class Client:
 
         self.S = {} # stash
         self.position = self._initialize_position() # position map
+
+        # encryption/decryption
+        key = Fernet.generate_key()
+        self.f = Fernet(key)
 
         # client initializes dummy data and starts a new server with it
         self.server = Server(self._generate_initial_data())
@@ -139,8 +144,8 @@ class Client:
     def _depad_block(self, block):
         return block.rstrip(b"\x00").removesuffix(b"\x01")
 
-    def _encrypt(self, data):
-        return data # for now, identity
+    def _encrypt(self, data, identity=False):
+        return self.f.encrypt(data) if not identity else data
 
-    def _decrypt(self, data):
-        return data # for now, identity
+    def _decrypt(self, data, identity=False):
+        return self.f.decrypt(data) if not identity else data
