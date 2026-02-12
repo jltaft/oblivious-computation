@@ -118,23 +118,26 @@ class Client:
 
     def _encrypt_block(self, block): # block should be (a, data)
         byte_block = json.dumps(block).encode("utf-8")
-        if len(byte_block) > self.B:
-            raise ValueError(f"Block size {len(byte_block)} is larger than B={self.B}")
-        padded_block = byte_block + b"\x00" * (self.B - len(byte_block)) # need to change (see _decrypt_block comment)
+        padded_block = self._pad_block(byte_block)
         encrypted_block = self._encrypt(padded_block)
         return encrypted_block
 
     def _decrypt_block(self, block):
         padded_decrypted_byte_block = self._decrypt(block)
-        # TODO need a better way to remove padding
-        # I saw something that last byte should be the amount of padding,
-        # but what if amount of padding is more than 255?
-        # Do we need to choose how many trailing bytes represent amount of padding based on total_N?
-        # for now, just removing trailing \x00 but it's bad
-        decrypted_byte_block = padded_decrypted_byte_block.rstrip(b"\x00")
+        decrypted_byte_block = self._depad_block(padded_decrypted_byte_block)
         decrypted_block = decrypted_byte_block.decode("utf-8")
         a, data = json.loads(decrypted_block)
         return a, data
+    
+    def _pad_block(self, block):
+        if len(block) > self.B:
+            raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
+        if len(block) == self.B:
+            return block
+        return block + b"\x01" + b"\x00" * (self.B - len(block) - 1)
+
+    def _depad_block(self, block):
+        return block.rstrip(b"\x00").removesuffix(b"\x01")
 
     def _encrypt(self, data):
         return data # for now, identity
