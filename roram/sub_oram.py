@@ -22,7 +22,7 @@ class SubORAMServer:
 
 
 class SubORAMClient:
-    def __init__(self, i, cnt, N, L=None, B=32768, Z=4):
+    def __init__(self, i, cnt, l, N, L=None, B=32768, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
         # height is 0 of tree with just root node
@@ -39,6 +39,7 @@ class SubORAMClient:
         self.B = B # block size (in bits)
         self.Z = Z # capacity of each bucket (in blocks)
         self.cnt = cnt
+        self.l = l
 
         self.S = {} # stash
         self.position = self._initialize_position() # position map
@@ -104,7 +105,7 @@ class SubORAMClient:
         return [self._create_dummy_block() for _ in range(self._total_N)]
     
     def _create_dummy_block(self):
-        return self._encrypt_block((-1, ""))
+        return self._encrypt_block((-1, ["", *[-1] * ((self.l) + 1)]))
 
     # change to use bit reversed order, etc.
     def _P(self, x, l):
@@ -115,16 +116,6 @@ class SubORAMClient:
         for i in range(self.Z):
             encrypted_block = self.server.read_block(bucket + i)
             a, data = self._decrypt_block(encrypted_block)
-            # TODO for now not storing dummy blocks in stash
-            # need to check if this is ok, since paper did say
-
-            # For ReadBucket(bucket),
-            # the client reads all Z blocks (including any dummy blocks) from the bucket stored on the server.
-            # Blocks are decrypted as they are read
-
-            # but since we need to reencrypt dummy blocks anyways especially after the dummy block is popped from the stash
-            # may as well not store it?
-
             if a != -1: # not dummy
                 bucket_blocks[a] = data
 
@@ -168,8 +159,8 @@ class SubORAMClient:
     def _decrypt(self, data, identity=False):
         return self.f.decrypt(data) if not identity else data
     
+    # block is now (a, (d, p_0, ..., p_l))
     def read_range(self, a):
-        # block is now (a, data=(d, p_0, ..., p_l))
         """
             Takes as input a logical address a and
             returns the 2
@@ -186,7 +177,7 @@ class SubORAMClient:
                 result[B[0]] = B[1]
         p = self.position[a]
         self.position[a] = self._uniform_random(2 ** self.L - 1) # or should it be N? need to verify
-        for j in range(self.L): # j from 0 to h (0 is root, h (what we call L) is the level of the leaf nodes)
+        for j in range(self.L + 1): # j from 0 to h (0 is root, h (what we call L) is the level of the leaf nodes)
             # for _P(x, l), x is the path and l is the level
             V = {}
             for t in self._get_possible_t(p, 2 ** self.i, j):
@@ -196,7 +187,6 @@ class SubORAMClient:
                 if a <= B[0] < a + 2 ** self.i:
                     if B[0] not in result:
                         result[B[0]] = B[1]
-        print(f"REad range returning: {(result, self.position[a])}")
         return (result, self.position[a])
             
 
@@ -212,7 +202,7 @@ class SubORAMClient:
             V = {}
             for t in self._get_possible_t(self.cnt[0], k, j):
                 B = self._read_bucket(self._P(t, j))
-                V[B[0]] = B[1]
+                V = V | B
             for B in V:
                 if B[0] not in self.S:
                     self.S[B[0]] = B[1]

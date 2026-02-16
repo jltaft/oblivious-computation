@@ -13,7 +13,7 @@ class RORAMClient:
         self.B = B # block size (in bits)
         self.Z = Z # capacity of each bucket (in blocks)
         self.cnt = [0]
-        self.R = [SubORAMClient(i, self.cnt, N, B=B, Z=Z) for i in range(self.l + 1)]
+        self.R = [SubORAMClient(i, self.cnt, self.l, N, B=B, Z=Z) for i in range(self.l + 1)]
         
 
     def access(self, a, r, op, D_star=None):
@@ -43,12 +43,14 @@ class RORAMClient:
             Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result, p_prime)
 
             for j in range(2 ** i):
+                if a_prime + j not in Bs:
+                    Bs[a_prime + j] = ["", *[-1] * ((self.l) + 1)]
                 Bs[a_prime + j][1 + i] = p_prime + j
         
         # update if write
         if op == "write":
             for j in range(r):
-                Bs[a_prime + j][1] = D_star[Bs[j][0]]
+                Bs[a_prime + j][1] = D_star[j]
 
         # Update stashes and evict in each tree
         for j in range(self.l):                

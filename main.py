@@ -23,4 +23,4 @@
 from roram.roram_client import RORAMClient
 if __name__ == "__main__":
     client = RORAMClient(32)
-    client.access(5, 3, "write", {5: 'a', 6: 'b', 7: 'c'})
+    client.access(5, 3, "write", ['a,', 'b', 'c'])
