@@ -52,16 +52,13 @@ class SubORAMClient:
     def _create_dummy_block(self):
         return self._encrypt_block((-1, "dummy!"))
 
-    # TODO change to use bit reversed order by replacing x with appropriate value
-    # gets the bucket # (server will multiply by z...)
-    def _P(self, x, l):
-        return 2 ** l - 1 + x % 2 ** l
-
-    def _read_buckets(self, j, a, k): # [i,j)
-        if a + k >= 2 ** j:
-            encrypted_blocks = self.server.read_slice(self._P(a, j), self._P(2 ** j, j)).tolist() + self.server.read_slice(self._P(0, j), self._P((a + k) % 2 ** j, j)).tolist()
+    def _read_buckets(self, j, start, length):
+        start = start % 2 ** j
+        end = (start + length) % 2 ** j
+        if start <= end:
+            encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + end).tolist()
         else:
-            encrypted_blocks = self.server.read_slice(self._P(a, j), self._P(a + k, j)).tolist()
+            encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j).tolist() + self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + end).tolist()
         decrypted_blocks = {}
         for encrypted_block in encrypted_blocks:
             a, data = self._decrypt_block(encrypted_block)
@@ -70,41 +67,37 @@ class SubORAMClient:
         return decrypted_blocks
 
     # pads with dummy blocks if needed
-    def _write_buckets(self, j, a, k, buckets):
-        encrypted_blocks = []
-        for t in range(0, 2 ** j):
-            bucket = buckets[t]
-            encrypted_blocks += [self._encrypt_block(block) for block in bucket]
-            for _ in range(self.Z - len(bucket)):
-                encrypted_blocks.append(self._create_dummy_block())
-        self.server.write_slice(self._P(0, j), self._P(2 ** j, j), np.array(encrypted_blocks))
-        return
-        if a + k >= 2 ** j:
-            encrypted_blocks_1 = []
-            encrypted_blocks_2 = []
-            for t in range(a, 2 ** j):
-                bucket = buckets[t]
-                encrypted_blocks_1 += [self._encrypt_block(block) for block in bucket]
-                for _ in range(self.Z - len(bucket)):
-                    encrypted_blocks_1.append(self._create_dummy_block())
-            for t in range(0, (a + k) % 2 ** j):
-                bucket = buckets[t]
-                encrypted_blocks_2 += [self._encrypt_block(block) for block in bucket]
-                for _ in range(self.Z - len(bucket)):
-                    encrypted_blocks_2.append(self._create_dummy_block())
-
-            if self._P(a, j) < self._P(2 ** j, j):
-                self.server.write_slice(self._P(a, j), self._P(2 ** j, j), np.array(encrypted_blocks_1))
-            if self._P(0, j) < self._P((a + k) % 2 ** j, j):
-                self.server.write_slice(self._P(0, j), self._P((a + k) % 2 ** j, j), np.array(encrypted_blocks_2))
-        else:
+    def _write_buckets(self, j, start, length, buckets):
+        # print(f'buckets: {buckets}')
+        start = start % 2 ** j
+        end = (start + length) % 2 ** j
+        if start <= end:
             encrypted_blocks = []
-            for t in range(a, a + k):
-                bucket = buckets[t]
-                encrypted_blocks += [self._encrypt_block(block) for block in bucket]
+            for r in range(start, end):
+                bucket = buckets[r]
+                encrypted_blocks += [self._encrypt_block(block) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
-            self.server.write_slice(self._P(a, j), self._P(a + k, j), np.array(encrypted_blocks))
+            self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + end, np.array(encrypted_blocks))
+            # print(f'len: {len(encrypted_blocks)}')
+        if end < start:
+            encrypted_blocks_1 = []
+            encrypted_blocks_2 = []
+            for r in range(start, 2 ** j):
+                bucket = buckets[r]
+                encrypted_blocks_1 += [self._encrypt_block(block) for block in bucket.items()]
+                for _ in range(self.Z - len(bucket)):
+                    encrypted_blocks_1.append(self._create_dummy_block())
+
+            for r in range(0, end):
+                bucket = buckets[r]
+                encrypted_blocks_2 += [self._encrypt_block(block) for block in bucket.items()]
+                for _ in range(self.Z - len(bucket)):
+                    encrypted_blocks_2.append(self._create_dummy_block())
+                
+            self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks_1))
+            self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + end, np.array(encrypted_blocks_2))
+            # print(f'len: {len(encrypted_blocks_1) + len(encrypted_blocks_2)}')
 
     def _encrypt_block(self, block):
         byte_block = json.dumps(block).encode("utf-8")
@@ -118,6 +111,7 @@ class SubORAMClient:
         decrypted_block = decrypted_byte_block.decode("utf-8")
         a, data = json.loads(decrypted_block)
         return a, data
+        
     
     def _pad_block(self, block):
         if len(block) > self.B:
@@ -142,19 +136,14 @@ class SubORAMClient:
             a must be a multiple of 2^i
         """
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + 2 ** self.i}
-        print(f'result: {result}')
         p = self.position[a]
         p_prime = self._uniform_random(self.N - 1)
         self.position[a] = p_prime
         for j in range(self.h + 1):
             V = self._read_buckets(j, p, 2 ** self.i)
-            print(f'v: {V}')
-            for B in V:
+            for B in V.items():
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result:
                     result.update([B])
-        print(f'final result {result}')
-        decrypt = [self._decrypt_block(block) for block in self.server.data]
-        print(f'HERE IS SERVER for {self.i}: {decrypt}')
         return (result, p_prime)
             
 
@@ -169,17 +158,19 @@ class SubORAMClient:
         cnt = self.cnt[0]
         for j in range(self.h + 1):
             V = self._read_buckets(j, cnt, k)
-            for B in V:
-                if B[0] not in self.S:
+            for B in V.items():
+                if B[0] not in self.S.keys():
                     self.S.update([B])
 
         # evict paths
-        v = {j: ([[]] * 2 ** j) for j in range(0, self.h + 1)}
+        v = {j: ([{}] * 2 ** j) for j in range(0, self.h + 1)}
         for j in range(self.h, -1, -1):
-            if cnt + k >= 2 ** j:
-                r_range = range(cnt, 2 ** j)
+            start = cnt % 2 ** j
+            end = (cnt + k) % 2 ** j
+            if start <= end:
+                r_range = range(start, end)
             else:
-                r_range = [*range(cnt, 2 ** j), *range(0, (cnt + k) % 2 ** j)]
+                r_range = [*range(start, 2 ** j), *range(0, end)]
             for r in r_range:
                 S_prime = {}
                 for B in self.S.items():

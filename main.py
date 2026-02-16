@@ -29,5 +29,5 @@ if __name__ == "__main__":
     print('next')
     client.access(6, 5, "write", ['e,', 'f', 'g', 'h', 'i'])
     print(client.access(5, 3, "read"))
-    print(client.access(5, 3, "read"))
+    # print(client.access(5, 3, "read"))
     # client.print_debug()

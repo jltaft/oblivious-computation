@@ -10,7 +10,7 @@ class RORAMClient:
             raise ValueError(f"N={N} is not positive")
         self.h = math.ceil(math.log2(N))
         self.L = L if L is not None else N # L <= N is the maximum range size supported
-        N = self.h ** 2 # move N up to be a power of 2
+        N = 2 ** self.h # move N up to be a power of 2
         self.N = N # number of logical blocks, also number of leaf nodes
         self.l = math.ceil(math.log2(self.L)) # we have l + 1 PATH ORAMS labeled R_0, ..., R_l
         self.B = B # block size (in bits)
@@ -26,7 +26,9 @@ class RORAMClient:
         D = {}
         for a_prime in [a_0, a_0 + 2 ** i]:
             Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result, p_prime)
-            print(f"bs: {Bs}")
+            # print(f"2^i = {2**i}. bs: {Bs}")
+            # print(f'was searching: {a_prime}')
+            # self.print_debug(i)
             for j in range(2 ** i):
                 Bs[a_prime + j][1 + i] = p_prime + j
             D = D | Bs
@@ -51,11 +53,10 @@ class RORAMClient:
         if op == "read":
             return D
         
-    def print_debug(self):
-        for i in range(self.l + 1):
-            Ri = self.R[i]
-            # print(f'HERE IS SERVER for {i}: {[Ri._decrypt_block(Ri.server.read_block(idk)) for idk in range(Ri._total_N)]}')
-            print(f"Here is the stash for {i}: {Ri.S}")
+    def print_debug(self, i):
+        Ri = self.R[i]
+        print(f'HERE IS SERVER for {i}: {[Ri._decrypt_block(block) for block in Ri.server.read_slice(0, len(Ri.server.data)) ]}')
+        print(f"Here is the stash for {i}: {Ri.S}")
 
     def _uniform_random(self, n):
         # return a uniform random int from 0 to n inclusive
@@ -75,6 +76,5 @@ class RORAMClient:
         data = {}
         for a in range(self.N):
             data[a] = ["", *[positions[i][a] for i in range(self.l + 1)]]
-
         return [SubORAMClient(i, self.cnt, positions[i], copy.deepcopy(data), self.N, self.h, B=self.B, Z=self.Z) for i in range(self.l + 1)]
         # need to move stash to server so that post-initialization there is not too much in stash
