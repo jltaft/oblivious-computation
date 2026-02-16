@@ -1,7 +1,5 @@
 # naive rORAM using path oram
-
-# for now using basic until we have verified recursive version is 100% good
-from basic_path_oram_client import PathORAMClient
+from path_oram import PathORAMClient
 
 class NaiveRORAMClient:
     def __init__(self, N, L=None, B=32768, Z=4):

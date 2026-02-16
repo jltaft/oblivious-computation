@@ -1,6 +1,5 @@
 import math
-# for now using basic until we have verified recursive version is 100% good
-from basic_path_oram_client import PathORAMClient
+from path_oram import PathORAMClient
 
 class SubORAM:
     def __init__(self, N, B, Z):
