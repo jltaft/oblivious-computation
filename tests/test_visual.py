@@ -100,5 +100,5 @@ def test_all_visual(client_class):
 
 
 if __name__ == "__main__":
-    from client10 import Client10
-    test_all_visual(Client10)
+    from client import Client
+    test_all_visual(Client)
