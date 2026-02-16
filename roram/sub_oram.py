@@ -68,7 +68,6 @@ class SubORAMClient:
 
     # pads with dummy blocks if needed
     def _write_buckets(self, j, start, length, buckets):
-        # print(f'buckets: {buckets}')
         start = start % 2 ** j
         end = (start + length) % 2 ** j
         if start <= end:
@@ -79,7 +78,6 @@ class SubORAMClient:
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
             self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + end, np.array(encrypted_blocks))
-            # print(f'len: {len(encrypted_blocks)}')
         if end < start:
             encrypted_blocks_1 = []
             encrypted_blocks_2 = []
@@ -97,7 +95,6 @@ class SubORAMClient:
                 
             self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks_1))
             self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + end, np.array(encrypted_blocks_2))
-            # print(f'len: {len(encrypted_blocks_1) + len(encrypted_blocks_2)}')
 
     def _encrypt_block(self, block):
         byte_block = json.dumps(block).encode("utf-8")
