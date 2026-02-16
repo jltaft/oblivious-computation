@@ -52,7 +52,9 @@ class RORAMClient:
         # update if write
         if op == "write":
             for j in range(r):
-                Bs[a_prime + j][1] = D_star[j]
+                if a + j not in Bs:
+                    Bs[a + j] = ["", *[-1] * ((self.l) + 1)]
+                Bs[a + j][0] = D_star[j]
 
         # Update stashes and evict in each tree
         for j in range(self.l + 1):                
