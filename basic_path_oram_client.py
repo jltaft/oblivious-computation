@@ -3,10 +3,10 @@ import math
 import json
 import sys
 from cryptography.fernet import Fernet
-from server import Server
+from path_oram_server import Server
 
 
-class Client:
+class PathORAMClient:
     def __init__(self, N, L=None, B=32768, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")

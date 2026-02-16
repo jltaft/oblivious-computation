@@ -1,4 +1,4 @@
-from client import Client
+from basic_path_oram_client import PathORAMClient as Client
 
 if __name__ == "__main__":
     Client = Client(10)

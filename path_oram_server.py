@@ -1,5 +1,4 @@
-
-class Server:
+class PathORAMServer:
     def __init__(self, data):
         self.data = data
     

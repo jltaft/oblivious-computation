@@ -3,7 +3,7 @@ import math
 import json
 import sys
 from cryptography.fernet import Fernet
-from server import Server
+from path_oram_server import PathORAMServer as Server
 
 
 class _InMemoryPositionMap:
