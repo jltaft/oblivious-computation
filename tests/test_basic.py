@@ -1,4 +1,4 @@
-from recursive_client import Client, recursiveClient
+from recursive_path_oram_client import Client, recursiveClient
 
 def test_basic_write_read(client_class, label="Path ORAM"):
     print(f"\n=== Overwriting blocks with trace ({label}) ===")

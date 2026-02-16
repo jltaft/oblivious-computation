@@ -1,6 +1,6 @@
 import random
 import pprint
-from recursive_client import Client
+from recursive_path_oram_client import Client
 
 pp = pprint.PrettyPrinter(indent=4)
 

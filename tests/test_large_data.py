@@ -1,6 +1,6 @@
 import random
 import time
-from recursive_client import Client, recursiveClient
+from recursive_path_oram_client import Client, recursiveClient
 
 def test_large_dataset(client_class, label="Path ORAM", N=10000, Z=4, B=8192):
     print(f"\n=== Stress test large dataset ({label}) ===")
