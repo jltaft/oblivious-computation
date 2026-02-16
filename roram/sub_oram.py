@@ -224,7 +224,6 @@ class SubORAMClient:
     def _get_possible_t(self, start, k, j):
         possible_t = set()
         t = start
-        possible_t.add(t)
         for i in range(k):
             t = (start + i) % (2 ** j)
             possible_t.add(t)

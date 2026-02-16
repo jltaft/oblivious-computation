@@ -25,4 +25,6 @@ if __name__ == "__main__":
     client = RORAMClient(32)
     client.access(5, 3, "write", ['a,', 'b', 'c'])
     print(client.access(5, 3, "read"))
+    client.access(5, 3, "write", ['e,', 'f', 'g'])
+    print(client.access(5, 3, "read"))
     # client.print_debug()
