@@ -1,35 +1,5 @@
 import math
-from path_oram import PathORAMClient
-
-class SubORAM:
-    def __init__(self, N, B, Z):
-        self.path_oram = PathORAMClient(N, B=B, Z=Z)
-        self.N = N
-        self.B = B
-        self.Z = Z
-
-    def read_range(self, a):
-        """
-            Takes as input a logical address a and
-            returns the 2
-            i blocks in the range [a, a + 2i
-            ) from the
-            ORAM. Here a must be a multiple of 2
-            i
-            , as in a = b · 2
-            i
-        """
-        pass
-
-    def batch_evict(self, k):
-        """
-            Perform k evictions as a batch
-            to write back multiple blocks to the ORAM from the
-            stash for each of the k evicted paths. Evictions occur
-            in a deterministic order, and a global counter is used to
-            maintain this order.
-        """
-        pass
+from roram.sub_oram import SubORAMClient
 
 
 class RORAMClient:
@@ -42,9 +12,11 @@ class RORAMClient:
         self.l = math.ceil(math.log2(self.L)) # we have l + 1 PATH ORAMS labeled R_0, ..., R_l
         self.B = B # block size (in bits)
         self.Z = Z # capacity of each bucket (in blocks)
-        self.R = [SubORAM(N, B=B, Z=Z) for i in range(self.l + 1)]
+        self.cnt = [0]
+        self.R = [SubORAMClient(i, self.cnt, N, B=B, Z=Z) for i in range(self.l + 1)]
+        
 
-    def access(self, id, r):
+    def access(self, a, r, op, D_star=None):
         """
             Given a range of size r beginning at logical
             identifier id, with ⌈log2
@@ -65,8 +37,28 @@ class RORAMClient:
         if r > self.L:
             raise ValueError(f"Range size r={r} is greater than max range size supported L={self.L}")
         i = math.ceil(math.log2(r))
-        a_1 = id // 2 ** i
-        a_2 = (a_1 + 2 ** i) % self.N
+        a_0 = (a // (2 ** i)) * 2 ** i
+        D = {}
+        for a_prime in range(a_0, a_0 + 2 ** i):
+            Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result, p_prime)
+
+            for j in range(2 ** i):
+                Bs[a_prime + j][1 + i] = p_prime + j
         
-        read_blocks = self.R[i].read_range(a_1) | self.R[i].read_range(a_2)
-        
+        # update if write
+        if op == "write":
+            for j in range(r):
+                Bs[a_prime + j][1] = D_star[Bs[j][0]]
+
+        # Update stashes and evict in each tree
+        for j in range(self.l):                
+            Rj = self.R[j]
+            for block in Rj.S.items():
+                if a_0 <= block[0] < a_0 + 2 ** (i + 1):
+                    Rj.S[block[0]] = Bs[block[0]]
+            Rj.batch_evict(2**(i+1))
+
+        self.cnt[0] += 2 ** (i + 1)
+
+        if op == "read":
+            return D

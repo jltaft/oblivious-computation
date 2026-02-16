@@ -242,7 +242,7 @@ class Client:
         return self.f.decrypt(data) if not identity else data
 
 
-def recursiveClient(N, B=32768, Z=4):
+def recursiveClient(N, B=1<<15, Z=4):
     """Path ORAM with the position map stored recursively in smaller ORAM(s)"""
     L = _tree_height(N, Z)
     E = _entries_per_block(N, L, B)
