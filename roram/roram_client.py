@@ -46,6 +46,8 @@ class RORAMClient:
                 if a_prime + j not in Bs:
                     Bs[a_prime + j] = ["", *[-1] * ((self.l) + 1)]
                 Bs[a_prime + j][1 + i] = p_prime + j
+            
+            D = D | Bs
         
         # update if write
         if op == "write":
@@ -53,14 +55,21 @@ class RORAMClient:
                 Bs[a_prime + j][1] = D_star[j]
 
         # Update stashes and evict in each tree
-        for j in range(self.l):                
+        for j in range(self.l + 1):                
             Rj = self.R[j]
             for block in Rj.S.items():
                 if a_0 <= block[0] < a_0 + 2 ** (i + 1):
                     Rj.S[block[0]] = Bs[block[0]]
+            Rj.S = Rj.S | Bs
             Rj.batch_evict(2**(i+1))
 
         self.cnt[0] += 2 ** (i + 1)
 
         if op == "read":
             return D
+        
+    def print_debug(self):
+        for i in range(self.l + 1):
+            Ri = self.R[i]
+            # print(f'HERE IS SERVER for {i}: {[Ri._decrypt_block(Ri.server.read_block(idk)) for idk in range(Ri._total_N)]}')
+            print(f"Here is the stash for {i}: {Ri.S}")
