@@ -57,9 +57,12 @@ class RORAMClient:
         # Update stashes and evict in each tree
         for j in range(self.l + 1):                
             Rj = self.R[j]
+            keys_to_remove = set()
             for block in Rj.S.items():
                 if a_0 <= block[0] < a_0 + 2 ** (i + 1):
-                    Rj.S[block[0]] = Bs[block[0]]
+                    keys_to_remove.add(block[0])
+            for key in keys_to_remove:
+                del Rj.S[key]
             Rj.S = Rj.S | Bs
             Rj.batch_evict(2**(i+1))
 
