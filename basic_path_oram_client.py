@@ -2,8 +2,9 @@ import random
 import math
 import json
 import sys
+import numpy as np
 from cryptography.fernet import Fernet
-from path_oram_server import Server
+from path_oram_server import PathORAMServer
 
 
 class PathORAMClient:
@@ -31,7 +32,7 @@ class PathORAMClient:
         self.f = Fernet(key)
 
         # client initializes dummy data and starts a new server with it
-        self.server = Server(self._generate_initial_data())
+        self.server = PathORAMServer(np.array(self._generate_initial_data()))
 
     def access(self, op, a, new_data=None):
         # a is block id
