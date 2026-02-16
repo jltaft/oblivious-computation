@@ -1,21 +1,39 @@
+import math
 # for now using basic until we have verified recursive version is 100% good
 from basic_path_oram_client import PathORAMClient
 
-class rORAMClient():
-    def __init__(self, N, L=None, B=32768, Z=4):
-        self.
-        self.client = PathORAMClient(10)
+class SubORAM:
+    def __init__(self, N, B, Z):
+        self.path_oram = PathORAMClient(N, B=B, Z=Z)
+        self.N = N
+        self.B = B
+        self.Z = Z
+
+    def read_range(self, a):
+        """
+            Takes as input a logical address a and
+            returns the 2
+            i blocks in the range [a, a + 2i
+            ) from the
+            ORAM. Here a must be a multiple of 2
+            i
+            , as in a = b · 2
+            i
+        """
+        pass
+
+    def batch_evict(self, k):
+        """
+            Perform k evictions as a batch
+            to write back multiple blocks to the ORAM from the
+            stash for each of the k evicted paths. Evictions occur
+            in a deterministic order, and a global counter is used to
+            maintain this order.
+        """
+        pass
 
 
-import random
-import math
-import json
-import sys
-from cryptography.fernet import Fernet
-from path_oram_server import Server
-
-
-class PathORAMClient:
+class RORAMClient:
     def __init__(self, N, L=None, B=32768, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
@@ -25,7 +43,31 @@ class PathORAMClient:
         self.l = math.ceil(math.log2(self.L)) # we have l + 1 PATH ORAMS labeled R_0, ..., R_l
         self.B = B # block size (in bits)
         self.Z = Z # capacity of each bucket (in blocks)
-        self.path_orams = []
-        for i in range(self.l + 1):
-            self.path_orams.append(PathORAMClient(N, B=B, Z=Z))
+        self.R = [SubORAM(N, B=B, Z=Z) for i in range(self.l + 1)]
 
+    def access(self, id, r):
+        """
+            Given a range of size r beginning at logical
+            identifier id, with ⌈log2
+            r⌉ = i, run Ri
+            .ReadRange(a1)
+            and Ri
+            .ReadRange(a2) with a1 = ⌊id/2
+            i
+            ⌋ and a2 =
+            (a1 + 2i
+            ) mod N.
+
+            The updated data blocks are then appended to the stash
+            of all ℓ + 1 sub-ORAMs. Then, for each Rj , call
+            Rj .BatchEvict(2i+1
+            ,stash).
+        """
+        if r > self.L:
+            raise ValueError(f"Range size r={r} is greater than max range size supported L={self.L}")
+        i = math.ceil(math.log2(r))
+        a_1 = id // 2 ** i
+        a_2 = (a_1 + 2 ** i) % self.N
+        
+        read_blocks = self.R[i].read_range(a_1) | self.R[i].read_range(a_2)
+        
