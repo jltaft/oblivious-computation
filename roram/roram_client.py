@@ -25,7 +25,7 @@ class RORAMClient:
         a_0 = (a // (2 ** i)) * 2 ** i
         D = {}
         for a_prime in [a_0, a_0 + 2 ** i]:
-            Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result, p_prime)
+            Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result (copied), p_prime)
             for j in range(2 ** i):
                 Bs[a_prime + j][1 + i] = p_prime + j
             D = D | Bs
@@ -43,7 +43,7 @@ class RORAMClient:
                     as_to_remove.add(a_to_maybe_remove)
             for a_to_remove in as_to_remove:
                 del Rj.S[a_to_remove]
-            Rj.S = Rj.S | D
+            Rj.S = Rj.S | copy.deepcopy(D)
             Rj.batch_evict(2 ** (i + 1))
 
         self.cnt[0] += 2 ** (i + 1)

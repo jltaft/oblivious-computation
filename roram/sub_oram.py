@@ -1,12 +1,9 @@
-# copy of path oram since we might need to modify it for this stuff
-# (basic path oram for now)
-
+# modified basic path oram for now
 
 import random
-import math
 import json
-import sys
 import numpy as np
+import copy
 from cryptography.fernet import Fernet
 
 class SubORAMServer:
@@ -141,7 +138,9 @@ class SubORAMClient:
             for B in V.items():
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result:
                     result.update([B])
-        return (result, p_prime)
+                elif a <= B[0] < a + 2 ** self.i:
+                    print(f'duplicate a: {B}')
+        return (copy.deepcopy(result), p_prime)
             
 
     def batch_evict(self, k):
