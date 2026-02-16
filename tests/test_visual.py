@@ -31,7 +31,7 @@ def visualize_access(client, op, block, expected, new_val=None):
 
     # Before access
     print("Position map BEFORE:")
-    pp.pprint(client.position)
+    pp.pprint(client.position if client.position is not None else "(stored in recursive ORAM)")
 
     # Perform access
     if op == "write":
@@ -41,7 +41,7 @@ def visualize_access(client, op, block, expected, new_val=None):
 
     # After access
     print("\nPosition map AFTER:")
-    pp.pprint(client.position)
+    pp.pprint(client.position if client.position is not None else "(stored in recursive ORAM)")
 
     print("\nStash AFTER:")
     pp.pprint(client.S)
@@ -100,5 +100,9 @@ def test_all_visual(client_class):
 
 
 if __name__ == "__main__":
-    from client import Client
+    from client import Client, recursiveClient
+    print("========== Single-level Path ORAM ==========")
     test_all_visual(Client)
+    print("========== Recursive Path ORAM ==========")
+    test_all_visual(recursiveClient)
+    print("All visual tests passed (single-level + recursive).\n")
