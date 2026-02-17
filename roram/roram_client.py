@@ -26,8 +26,6 @@ class RORAMClient:
         D = {}
         for a_prime in [a_0, a_0 + 2 ** i]:
             Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result (copied), p_prime)
-            # print(f'a_prime: {a_prime}, r: {r}, i: {i}, 2^i: {2 ** i}')
-            # print(f'Bs: {Bs}')
             for j in range(2 ** i):
                 Bs[a_prime + j][1 + i] = p_prime + j
             D = D | Bs
@@ -52,7 +50,7 @@ class RORAMClient:
         if op == "read":
             return D
         
-    def _print_debug(self, i):
+    def print_debug(self, i):
         Ri = self.R[i]
         print(f'HERE IS SERVER for {i}: {[Ri._decrypt_block(block) for block in Ri.server.read_slice(0, len(Ri.server.data)) ]}')
         print(f"Here is the stash for {i}: {Ri.S}")

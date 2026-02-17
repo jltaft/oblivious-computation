@@ -61,7 +61,7 @@ class SubORAMClient:
         decrypted_blocks = {}
         for encrypted_block in encrypted_blocks:
             a, data = self._decrypt_block(encrypted_block)
-            if a != -1: # not dummy
+            if a != -1 and a not in decrypted_blocks: # not dummy and not already there
                 decrypted_blocks[a] = data
         return decrypted_blocks
 
@@ -85,7 +85,7 @@ class SubORAMClient:
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
             self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + end, np.array(encrypted_blocks))
-        if end < start:
+        else:
             encrypted_blocks_1 = []
             encrypted_blocks_2 = []
             for r in range(start, 2 ** j):
