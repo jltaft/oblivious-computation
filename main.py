@@ -22,12 +22,21 @@
 
 from roram.roram_client import RORAMClient
 if __name__ == "__main__":
-    client = RORAMClient(32)
-    client.access(5, 3, "write", ['a,', 'b', 'c'])
-    print(client.access(5, 3, "read"))
+    for i in range(20):
+        print(f'test {i}')
+        client = RORAMClient(32)
+        client.access(5, 3, "write", ['a', 'b', 'c'])
+        d = client.access(5, 3, "read")
+        if d[5][0] != 'a' or d[6][0] != 'b' or d[7][0] != 'c':
+            print(d)
+            print('failed')
+            break
 
-    print('next')
-    client.access(6, 5, "write", ['e,', 'f', 'g', 'h', 'i'])
-    print(client.access(5, 3, "read"))
-    # print(client.access(5, 3, "read"))
-    # client.print_debug()
+        client.access(6, 5, "write", ['e', 'f', 'g', 'h', 'i'])
+        d = client.access(5, 3, "read")
+        if d[6][0] != 'e' or d[7][0] != 'f' or d[8][0] != 'g' or d[9][0] != 'h' or d[10][0] != 'i':
+            print(d)
+            print('failed')
+            break
+    else:
+        print('tests passed!')

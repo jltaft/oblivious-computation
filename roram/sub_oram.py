@@ -49,7 +49,7 @@ class SubORAMClient:
     def _create_dummy_block(self):
         return self._encrypt_block((-1, "dummy!"))
 
-    def _read_buckets(self, j, start, length):
+    def _read_buckets(self, j, start, length, p=None):
         start = start % 2 ** j
         end = (start + length) % 2 ** j
         if length >= 2 ** j:
@@ -62,15 +62,6 @@ class SubORAMClient:
         for encrypted_block in encrypted_blocks:
             a, data = self._decrypt_block(encrypted_block)
             if a != -1: # not dummy
-                # check that the p_i is correct!
-                a0 = (a // 2 ** self.i) * 2 ** self.i
-                expected = self.position[a0] + a - a0 # % self.N (not taking mod N as in algo 3 pseudocode line 7, we have 7: B_a′+j.pi ← p' + j // update positions for all blocks)
-                if data[self.i + 1] != expected:
-                    # print(f'position at a0={a0}: {self.position[a0]}')
-                    # print(f'got {data}, expected p_{self.i} = {expected}')
-                    continue
-                # if a in decrypted_blocks:
-                #     raise KeyError(f'{a} is at level {j} multiple times!')
                 decrypted_blocks[a] = data
         return decrypted_blocks
 
@@ -150,13 +141,12 @@ class SubORAMClient:
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + 2 ** self.i}
         p = self.position[a]
         p_prime = self._uniform_random(self.N - 1)
-        # self.position[a] = p_prime
+        self.position[a] = p_prime
         for j in range(self.h + 1):
             V = self._read_buckets(j, p, 2 ** self.i)
             for B in V.items():
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result:
                     result.update([B])
-        self.position[a] = p_prime
         return (copy.deepcopy(result), p_prime)
             
 
