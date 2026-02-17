@@ -52,7 +52,9 @@ class SubORAMClient:
     def _read_buckets(self, j, start, length):
         start = start % 2 ** j
         end = (start + length) % 2 ** j
-        if start <= end:
+        if length >= 2 ** j:
+            encrypted_blocks = self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j).tolist()
+        elif start <= end:
             encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + end).tolist()
         else:
             encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j).tolist() + self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + end).tolist()
@@ -60,6 +62,15 @@ class SubORAMClient:
         for encrypted_block in encrypted_blocks:
             a, data = self._decrypt_block(encrypted_block)
             if a != -1: # not dummy
+                # check that the p_i is correct!
+                a0 = (a // 2 ** self.i) * 2 ** self.i
+                expected = self.position[a0] + a - a0 # % self.N (not taking mod N as in algo 3 pseudocode line 7, we have 7: B_a′+j.pi ← p' + j // update positions for all blocks)
+                if data[self.i + 1] != expected:
+                    # print(f'position at a0={a0}: {self.position[a0]}')
+                    # print(f'got {data}, expected p_{self.i} = {expected}')
+                    continue
+                # if a in decrypted_blocks:
+                #     raise KeyError(f'{a} is at level {j} multiple times!')
                 decrypted_blocks[a] = data
         return decrypted_blocks
 
@@ -67,7 +78,15 @@ class SubORAMClient:
     def _write_buckets(self, j, start, length, buckets):
         start = start % 2 ** j
         end = (start + length) % 2 ** j
-        if start <= end:
+        if length >= 2 ** j:
+            encrypted_blocks = []
+            for r in range(0, 2 ** j):
+                bucket = buckets[r]
+                encrypted_blocks += [self._encrypt_block(block) for block in bucket.items()]
+                for _ in range(self.Z - len(bucket)):
+                    encrypted_blocks.append(self._create_dummy_block())
+            self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks))
+        elif start <= end:
             encrypted_blocks = []
             for r in range(start, end):
                 bucket = buckets[r]
@@ -106,7 +125,6 @@ class SubORAMClient:
         a, data = json.loads(decrypted_block)
         return a, data
         
-    
     def _pad_block(self, block):
         if len(block) > self.B:
             raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
@@ -132,14 +150,13 @@ class SubORAMClient:
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + 2 ** self.i}
         p = self.position[a]
         p_prime = self._uniform_random(self.N - 1)
-        self.position[a] = p_prime
+        # self.position[a] = p_prime
         for j in range(self.h + 1):
             V = self._read_buckets(j, p, 2 ** self.i)
             for B in V.items():
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result:
                     result.update([B])
-                elif a <= B[0] < a + 2 ** self.i:
-                    print(f'duplicate a: {B}')
+        self.position[a] = p_prime
         return (copy.deepcopy(result), p_prime)
             
 
@@ -159,18 +176,20 @@ class SubORAMClient:
                     self.S.update([B])
 
         # evict paths
-        v = {j: ([{}] * 2 ** j) for j in range(0, self.h + 1)}
+        v = {j: ([None] * 2 ** j) for j in range(0, self.h + 1)}
         for j in range(self.h, -1, -1):
             start = cnt % 2 ** j
             end = (cnt + k) % 2 ** j
-            if start <= end:
+            if k >= 2 ** j:
+                r_range = range(0, 2 ** j)
+            elif start <= end:
                 r_range = range(start, end)
             else:
                 r_range = [*range(start, 2 ** j), *range(0, end)]
             for r in r_range:
                 S_prime = {}
                 for B in self.S.items():
-                    if B[1][self.i+1] % 2 ** j == r:
+                    if B[1][self.i + 1] % 2 ** j == r:
                         S_prime.update([B])
                         if len(S_prime) == self.Z:
                             break
