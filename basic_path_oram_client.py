@@ -8,7 +8,7 @@ from path_oram_server import PathORAMServer
 
 
 class PathORAMClient:
-    def __init__(self, N, L=None, B=32768, Z=4):
+    def __init__(self, N, L=None, B=2**15, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
         # height is 0 of tree with just root node
@@ -37,6 +37,7 @@ class PathORAMClient:
     def access(self, op, a, new_data=None):
         # a is block id
         x = self.position[a]
+        # assign new randomized path for a
         self.position[a] = self._uniform_random(2 ** self.L - 1)
         
         # reads each bucket on the path and adds to stash
@@ -98,15 +99,6 @@ class PathORAMClient:
         for i in range(self.Z):
             encrypted_block = self.server.read_block(bucket + i)
             a, data = self._decrypt_block(encrypted_block)
-            # TODO for now not storing dummy blocks in stash
-            # need to check if this is ok, since paper did say
-
-            # For ReadBucket(bucket),
-            # the client reads all Z blocks (including any dummy blocks) from the bucket stored on the server.
-            # Blocks are decrypted as they are read
-
-            # but since we need to reencrypt dummy blocks anyways especially after the dummy block is popped from the stash
-            # may as well not store it?
 
             if a != -1: # not dummy
                 bucket_blocks[a] = data

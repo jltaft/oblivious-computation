@@ -18,7 +18,7 @@ class _InMemoryPositionMap:
     def set(self, a, x):
         self._position[a] = x
 
-    #necessary for batched updates 
+    # necessary for batched updates
     def set_many(self, updates):
         """updates: dict block_id -> leaf index"""
         for a, x in updates.items():
@@ -38,13 +38,12 @@ class _RecursivePositionMap:
         self.L = L
         self.E = E
         self._oram = recursive_oram
-        self._num_leaves = num_leaves  
+        self._num_leaves = num_leaves
         self._num_chunks = (N + E - 1) // E
 
     def get_and_set(self, a, new_x):
         chunk_id = a // self.E
-        raw = self._oram.access("read", chunk_id)
-        chunk = json.loads(raw) if isinstance(raw, str) else raw
+        chunk = self._oram.access("read", chunk_id)
         chunk = {int(k): v for k, v in chunk.items()}
         x = chunk.get(a, random.randint(0, self._num_leaves - 1))
         chunk[a] = new_x
@@ -246,12 +245,12 @@ def recursiveClient(N, B=1<<15, Z=4):
     """Path ORAM with the position map stored recursively in smaller ORAM(s)"""
     L = _tree_height(N, Z)
     E = _entries_per_block(N, L, B)
-    N_1 = (N + E - 1) // E
+    next_N = (N + E - 1) // E
 
-    if N_1 <= 1:
+    if next_N <= 1:
         return Client(N, B=B, Z=Z)
 
-    recursive_oram = recursiveClient(N_1, B, Z)
+    recursive_oram = recursiveClient(next_N, B, Z)
     num_leaves = 2 ** L
     position_map = _RecursivePositionMap(N, L, E, recursive_oram, num_leaves)
     data_oram = Client(N, B=B, Z=Z, position_map=position_map)
