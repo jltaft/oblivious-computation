@@ -18,18 +18,24 @@ class _InMemoryPositionMap:
     def set(self, a, x):
         self._position[a] = x
 
-    # necessary for batched updates
-    def set_many(self, updates):
-        """updates: dict block_id -> leaf index"""
-        for a, x in updates.items():
-            self._position[a] = x
-
+    # Sets block a to a new path new_x
+    # Output:
+    # x: old path
     def get_and_set(self, a, new_x):
         x = self._position[a]
         self._position[a] = new_x
         return x
 
-
+# _RecursivePositionMap is a position map stored in a recursive ORAM as chunks.
+# Each chunks holds E entries.
+# 
+# Data:
+#   N: number of blocks
+#   L: # of levels in tree (height)
+#   E: number of entries
+#   _oram: client point-of-entry to recursive ORAM storage
+#   _num_leaves: number of leaf nodes
+#   _num_chunks: number of chunks per block
 class _RecursivePositionMap:
     """position map stored in a recursive ORAM as chunks. Each chunk holds E entries."""
 
@@ -53,22 +59,6 @@ class _RecursivePositionMap:
     def set(self, a, x):
         """Update position of block a to x (e.g. after evicting onto path to x)."""
         self.get_and_set(a, x)
-
-    def set_many(self, updates):
-        """updates: dict block_id -> leaf index. Batched by chunk to minimize ORAM accesses."""
-        if not updates:
-            return
-        by_chunk = {}
-        for a, x in updates.items():
-            cid = a // self.E
-            by_chunk.setdefault(cid, {})[a] = x
-        for chunk_id, chunk_updates in by_chunk.items():
-            raw = self._oram.access("read", chunk_id)
-            chunk = json.loads(raw) if isinstance(raw, str) else raw
-            chunk = {int(k): v for k, v in chunk.items()}
-            for a, x in chunk_updates.items():
-                chunk[a] = x
-            self._oram.access("write", chunk_id, json.dumps(chunk))
 
     def initialize(self):
         """all position map chunks initialize with random leaf indices"""
@@ -124,9 +114,15 @@ class Client:
         # client initializes dummy data and starts a new server with it
         self.server = Server(self._generate_initial_data())
 
+    # Input
+    #   op: type of operation (read, write)
+    #   a: block id
+    #   new_data: new data if performing a write op
     def access(self, op, a, new_data=None):
-        # a is block id
+
+        # Calculate a random leaf node (new path)
         new_x = self._uniform_random(2 ** self.L - 1)
+        # x = old_path
         x = self.position_map.get_and_set(a, new_x)
 
         # reads each bucket on the path and adds to stash (blocks carry their position)
@@ -137,18 +133,20 @@ class Client:
         if op == "write":
             if new_data is None:
                 raise ValueError("write op needs new_data")
+            # check stash for target
             entry = self.S.get(a)
-            old_data = entry[0] if entry else None
+            return_data = entry[0] if entry else None
             self.S[a] = (new_data, new_x)
         elif op == "read":
             try:
-                old_data, _ = self.S[a]
+                return_data, _ = self.S[a]
             except KeyError as e:
                 print(f"Block not found in stash {e}", file=sys.stderr)
                 raise
         else:
             raise ValueError(f"Invalid op {op}")
 
+        # write back values from old path onto new path.
         for l in range(self.L, -1, -1):
             S_prime = {}
             # choose min(|S_prime|, Z) blocks that belong on this bucket's path
@@ -158,14 +156,15 @@ class Client:
                     S_prime[a_prime] = self.S[a_prime]
                     if len(S_prime) >= self.Z:
                         break
-            # blocks are now on path P(x); keep position map in sync (batched)
+            # blocks are now on path P(x); keep position map in sync
             if S_prime:
-                self.position_map.set_many({a_prime: x for a_prime in S_prime})
-            for a_prime in S_prime.keys():
-                del self.S[a_prime]
+                for a_prime in S_prime:
+                    self.position_map.set(a_prime, x)
+                for a_prime in S_prime.keys():
+                    del self.S[a_prime]
             self._write_bucket(self._P(x, l), S_prime)
 
-        return old_data
+        return return_data
     
     def _initialize_position(self):
         # returns an initialized position map
@@ -184,6 +183,7 @@ class Client:
     def _create_dummy_block(self):
         return self._encrypt_block((-1, "", -1))
 
+    # Returns block in path x on level L
     def _P(self, x, l):
         return (2 ** l - 1 + x // 2 ** (self.L - l)) * self.Z
 
