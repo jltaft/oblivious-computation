@@ -1,5 +1,5 @@
-from basic_path_oram_client import Client as BasicClient
-from re_recursive_path_oram_client import Client as RecursiveClient
+from basic_path_oram import Client as BasicClient
+from re_recursive_path_oram import Client as RecursiveClient
 
 def test_basic_write_read(client_class, label):
     print(f"=== Basic test ({label}) ===")

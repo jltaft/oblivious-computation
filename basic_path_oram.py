@@ -4,7 +4,16 @@ import json
 import sys
 import numpy as np
 from cryptography.fernet import Fernet
-from path_oram_server import PathORAMServer
+
+class Server:
+    def __init__(self, data):
+        self.data = data
+    
+    def read_block(self, i):
+        return self.data[i]
+    
+    def write_block(self, i, block):
+        self.data[i] = block
 
 
 class Client:
@@ -32,7 +41,7 @@ class Client:
         self.f = Fernet(key)
 
         # client initializes dummy data and starts a new server with it
-        self.server = PathORAMServer(np.array(self._generate_initial_data()))
+        self.server = Server(np.array(self._generate_initial_data()))
 
     def access(self, op, a, new_data=None):
         # a is block id
