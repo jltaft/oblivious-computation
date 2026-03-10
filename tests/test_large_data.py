@@ -9,8 +9,6 @@ def test_large_dataset(client_class, label, N=10000, Z=4, B=8192):
     client = client_class(N, Z=Z, B=B)
     print(f"Initialized with N={N}, Z={Z}, B={B} bits")
 
-    max_stash_size = 0
-
     # Write random data to all blocks
     start_time = time.time()
     for i in range(N):
@@ -18,7 +16,6 @@ def test_large_dataset(client_class, label, N=10000, Z=4, B=8192):
         client.access("write", i, data)
         if (i + 1) % 1000 == 0:
             print(f"Written {i+1}/{N} blocks")
-        max_stash_size = max(max_stash_size, len(client.S))
 
     write_time = time.time() - start_time
     print(f"Completed writing {N} blocks in {write_time:.2f} seconds")
@@ -32,11 +29,9 @@ def test_large_dataset(client_class, label, N=10000, Z=4, B=8192):
         val = client.access("read", idx)
         if (i + 1) % 1000 == 0:
             print(f"Read {i+1}/{N} blocks")
-        max_stash_size = max(max_stash_size, len(client.S))
 
     read_time = time.time() - start_time
     print(f"Completed reading {N} blocks in {read_time:.2f} seconds")
-    print(f"Maximum stash size observed: {max_stash_size}")
     print(f"Stress test completed ({label})\n")
 
 
