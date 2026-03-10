@@ -7,7 +7,7 @@ from cryptography.fernet import Fernet
 from path_oram_server import PathORAMServer
 
 
-class PathORAMClient:
+class Client:
     def __init__(self, N, L=None, B=2**15, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
@@ -137,8 +137,8 @@ class PathORAMClient:
     def _depad_block(self, block):
         return block.rstrip(b"\x00").removesuffix(b"\x01")
 
-    def _encrypt(self, data, identity=False):
+    def _encrypt(self, data, identity=True):
         return self.f.encrypt(data) if not identity else data
 
-    def _decrypt(self, data, identity=False):
+    def _decrypt(self, data, identity=True):
         return self.f.decrypt(data) if not identity else data
