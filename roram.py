@@ -5,7 +5,7 @@ import json
 import numpy as np
 from cryptography.fernet import Fernet
 
-class RORAMClient:
+class Client:
     def __init__(self, N, L=None, B=32768, Z=4):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
@@ -19,6 +19,10 @@ class RORAMClient:
         self.cnt = [0] # global counter
         self.R = self._initialize_sub_orams()
 
+    def nice_read(self, a, r):
+        data = self.access(a, r, "read")
+        return [data[i][0] for i in range(a, a + r)]
+
     def access(self, a, r, op, D_star=None):
         if r > self.L:
             raise ValueError(f"Range size r={r} is greater than max range size supported L={self.L}")
@@ -26,6 +30,8 @@ class RORAMClient:
         a_0 = (a // (2 ** i)) * 2 ** i
         D = {}
         for a_prime in [a_0, a_0 + 2 ** i]:
+            if a_prime >= self.N:
+                break
             Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result (copied), p_prime)
             for j in range(2 ** i):
                 Bs[a_prime + j][1 + i] = p_prime + j
@@ -76,6 +82,7 @@ class RORAMClient:
             data[a] = ["", *[positions[i][a] for i in range(self.l + 1)]]
         return [SubORAMClient(i, self.cnt, positions[i], copy.deepcopy(data), self.N, self.h, B=self.B, Z=self.Z) for i in range(self.l + 1)]
         # need to move stash to server so that post-initialization there is not too much in stash
+        # probably should not intialize so badly like this
 
 
 class SubORAMServer:
@@ -198,10 +205,10 @@ class SubORAMClient:
     def _depad_block(self, block):
         return block.rstrip(b"\x00").removesuffix(b"\x01")
 
-    def _encrypt(self, data, identity=False):
+    def _encrypt(self, data, identity=True):
         return self.f.encrypt(data) if not identity else data
 
-    def _decrypt(self, data, identity=False):
+    def _decrypt(self, data, identity=True):
         return self.f.decrypt(data) if not identity else data
     
     # block is now (a, (d, p_0, ..., p_l))
@@ -211,7 +218,12 @@ class SubORAMClient:
             a must be a multiple of 2^i
         """
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + 2 ** self.i}
-        p = self.position[a]
+        try:
+            p = self.position[a]
+        except:
+            print(f'a: {a}')
+            print(f'lenposition: {len(self.position)}')
+            # print(f'position: {self.position}')
         p_prime = self._uniform_random(self.N - 1)
         self.position[a] = p_prime
         for j in range(self.h + 1):
