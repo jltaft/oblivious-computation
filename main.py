@@ -1,5 +1,5 @@
-from basic_path_oram_client import PathORAMClient
-from recursive_path_oram_client import recursiveClient
+# from basic_path_oram_client import PathORAMClient
+from re_recursive_path_oram_client import Client
 
 # print("\n********Basic Path ORAM******** \n")
 # if __name__ == "__main__":
@@ -23,8 +23,7 @@ from recursive_path_oram_client import recursiveClient
 
 print("\n********Recursive Path ORAM******** \n")
 if __name__ == "__main__":
-    rClient = recursiveClient(20)
-    print("L= ", rClient.L)
+    rClient = Client(20)
 
     print("\nWrite (0, 'block 0 v1)")
     rClient.access("write", 0, "block 0 v1")

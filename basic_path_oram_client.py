@@ -128,9 +128,9 @@ class PathORAMClient:
         return a, data
     
     def _pad_block(self, block):
-        if len(block) > self.B:
+        if len(block) * 8 > self.B:
             raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
-        if len(block) == self.B:
+        if len(block) * 8 == self.B:
             return block
         return block + b"\x01" + b"\x00" * (self.B - len(block) - 1)
 
