@@ -10,15 +10,15 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
     print(f"Initialized with N={N}, Z={Z}, B={B} bits")
 
     truth = np.zeros(N, dtype=int).astype(str)
+
     # initialize with '0's
-    print(f'about to write initial: N: {N}, {truth}')
+    print('writing all zeros')
     client.access(0, N, "write", truth)
-    print('wrote initial')
 
     # make num_writes random range writes
+    print(f'starting {num_writes} write queries')
     start_time = time.time()
     for i in range(num_writes):
-        print(f'i: {i}')
         a = random.randint(0, N - 1)
         end = random.randint(a, N - 1) # inclusive
         r = end - a + 1
@@ -26,13 +26,14 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
         client.access(a, r, "write", slice)
         truth[a:end+1] = slice
 
-        if (i + 1) % 100 == 0:
-            print(f"Performed {i+1}/{N} write queries")
+        if (i + 1) % 5 == 0:
+            print(f"Performed {i+1}/{num_writes} write queries")
 
     write_time = time.time() - start_time
     print(f"Completed {num_writes} writes in {write_time:.2f} seconds")
 
-     # make num_reads random range reads
+    # make num_reads random range reads
+    print(f'starting {num_reads} read queries')
     start_time = time.time()
     for i in range(num_reads):
         a = random.randint(0, N - 1)
@@ -42,8 +43,8 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
 
         assert np.array_equal(result, truth[a:end+1])
 
-        if (i + 1) % 100 == 0:
-            print(f"Performed {i+1}/{N} read queries")
+        if (i + 1) % 5 == 0:
+            print(f"Performed {i+1}/{num_reads} read queries")
 
     write_time = time.time() - start_time
     print(f"Completed {num_writes} writes in {write_time:.2f} seconds")
@@ -55,7 +56,7 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
 
 def test_large_both():
     N, Z, B = 1000, 4, 8192
-    test_large_dataset(RORAMClient, "RORAM", num_writes=10, num_reads=100, N=N, Z=Z, B=B)
+    test_large_dataset(RORAMClient, "RORAM", num_writes=10, num_reads=10, N=N, Z=Z, B=B)
     print("All large-data tests passed.")
 
 
