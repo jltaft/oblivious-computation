@@ -1,7 +1,9 @@
-from recursive_path_oram_client import Client, recursiveClient
+from basic_path_oram_client import Client as BasicClient
+from re_recursive_path_oram_client import Client as RecursiveClient
 
-def test_basic_write_read(client_class, label="Path ORAM"):
-    print(f"\n=== Overwriting blocks with trace ({label}) ===")
+def test_basic_write_read(client_class, label):
+    print(f"=== Basic test ({label}) ===")
+
     N = 3
     client = client_class(N)
 
@@ -21,13 +23,13 @@ def test_basic_write_read(client_class, label="Path ORAM"):
         print(f"Read block {i}: {val}")
         assert val == f"second_{i}", f"Expected second_{i}, got {val}"
 
-    print(f"Passed overwrite test ({label})\n")
+    print(f"Passed test ({label})\n")
 
 
 def test_basic_both():
-    test_basic_write_read(Client, "single-level Path ORAM")
-    test_basic_write_read(recursiveClient, "recursive Path ORAM")
-    print("All basic tests passed (single-level + recursive).\n")
+    test_basic_write_read(BasicClient, "Basic Path ORAM")
+    test_basic_write_read(RecursiveClient, "Recursive Path ORAM")
+    print("All basic tests passed.")
 
 
 if __name__ == "__main__":

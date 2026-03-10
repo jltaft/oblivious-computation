@@ -1,10 +1,10 @@
 import random
 import time
-from basic_path_oram_client import Client
+from basic_path_oram_client import Client as BasicClient
 from re_recursive_path_oram_client import Client as RecursiveClient
 
-def test_large_dataset(client_class, label="Path ORAM", N=10000, Z=4, B=8192):
-    print(f"\n=== Stress test large dataset ({label}) ===")
+def test_large_dataset(client_class, label, N=10000, Z=4, B=8192):
+    print(f"=== Stress test large dataset ({label}) ===")
 
     client = client_class(N, Z=Z, B=B)
     print(f"Initialized with N={N}, Z={Z}, B={B} bits")
@@ -42,10 +42,9 @@ def test_large_dataset(client_class, label="Path ORAM", N=10000, Z=4, B=8192):
 
 def test_large_both():
     N, Z, B = 10000, 4, 8192
-    # test_large_dataset(Client, "single-level Path ORAM", N=N, Z=Z, B=B)
-    test_large_dataset(Client, "basic Path ORAM", N=N, Z=Z, B=B)
-    test_large_dataset(RecursiveClient, "recursive Path ORAM", N=N, Z=Z, B=B)
-    print("All large-data tests passed (single-level + recursive).\n")
+    test_large_dataset(BasicClient, "Basic Path ORAM", N=N, Z=Z, B=B)
+    test_large_dataset(RecursiveClient, "Recursive Path ORAM", N=N, Z=Z, B=B)
+    print("All large-data tests passed.")
 
 
 if __name__ == "__main__":
