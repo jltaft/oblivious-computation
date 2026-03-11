@@ -46,11 +46,9 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
         if (i + 1) % 5 == 0:
             print(f"Performed {i+1}/{num_reads} read queries")
 
-    write_time = time.time() - start_time
-    print(f"Completed {num_writes} writes in {write_time:.2f} seconds")
-
     read_time = time.time() - start_time
-    print(f"Completed reading {N} blocks in {read_time:.2f} seconds")
+    print(f"Completed {num_reads} writes in {read_time:.2f} seconds")
+
     print(f"Stress test for range completed ({label})\n")
 
 
