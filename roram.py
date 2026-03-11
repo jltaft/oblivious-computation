@@ -1,9 +1,8 @@
 import math
-import random
 import copy
-import json
 import numpy as np
 from cryptography.fernet import Fernet
+from utils import uniform_random, encrypt_block, decrypt_block
 
 class Client:
     def __init__(self, N, L=None, B=32768, Z=4):
@@ -22,6 +21,10 @@ class Client:
     def nice_read(self, a, r):
         data = self.access(a, r, "read")
         return [data[i][0] for i in range(a, a + r)]
+    
+    def nice_write(self, a, r, D_star):
+        data = self.access(a, r, "write", D_star)
+        # return [data[i][0] for i in range(a, a + r)] # uncomment to return the old data
 
     def access(self, a, r, op, D_star=None):
         if r > self.L:
@@ -30,7 +33,7 @@ class Client:
         a_0 = (a // (2 ** i)) * 2 ** i
         D = {}
         for a_prime in [a_0, a_0 + 2 ** i]:
-            if a_prime >= self.N:
+            if a_prime + 2 ** i - 1 >= self.N:
                 break
             Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result (copied), p_prime)
             for j in range(2 ** i):
@@ -50,29 +53,21 @@ class Client:
                     as_to_remove.add(a_to_maybe_remove)
             for a_to_remove in as_to_remove:
                 del Rj.S[a_to_remove]
-            Rj.S = Rj.S | copy.deepcopy(D)
+            # Rj.S = Rj.S | copy.deepcopy(D)
+            Rj.S = Rj.S | D
             Rj.batch_evict(2 ** (i + 1))
 
         self.cnt[0] += 2 ** (i + 1)
         if op == "read":
             return D
-        
-    # def print_debug(self, i):
-    #     Ri = self.R[i]
-    #     print(f'HERE IS SERVER for {i}: {[Ri._decrypt_block(block) for block in Ri.server.read_slice(0, len(Ri.server.data)) ]}')
-    #     print(f"Here is the stash for {i}: {Ri.S}")
 
-    def _uniform_random(self, n):
-        # return a uniform random int from 0 to n inclusive
-        return random.randint(0, n)
-    
     def _initialize_sub_orams(self):
         # initialize positions
         positions = []
         for i in range(self.l + 1):
             position = []
             for j in range(0, self.N, 2 ** i):
-                position.append(self._uniform_random(self.N - 1))
+                position.append(uniform_random(self.N - 1))
                 for k in range(1, 2 ** i):
                     position.append((position[j] + k) % self.N)
             positions.append(position)
@@ -121,12 +116,8 @@ class SubORAMClient:
         # server
         self.server = SubORAMServer(np.array([self._create_dummy_block() for _ in range(self.Z * (2 ** (self.h + 1) - 1))]), self.Z)
     
-    def _uniform_random(self, n):
-        # return a uniform random int from 0 to n inclusive
-        return random.randint(0, n)
-    
     def _create_dummy_block(self):
-        return self._encrypt_block((-1, "dummy!"))
+        return encrypt_block((-1, "dummy!"), self.B, self.f)
 
     def _read_buckets(self, j, start, length, p=None):
         start = start % 2 ** j
@@ -139,7 +130,7 @@ class SubORAMClient:
             encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j).tolist() + self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + end).tolist()
         decrypted_blocks = {}
         for encrypted_block in encrypted_blocks:
-            a, data = self._decrypt_block(encrypted_block)
+            a, data = decrypt_block(encrypted_block, self.f)
             if a != -1 and a not in decrypted_blocks: # not dummy and not already there
                 decrypted_blocks[a] = data
         return decrypted_blocks
@@ -152,7 +143,7 @@ class SubORAMClient:
             encrypted_blocks = []
             for r in range(0, 2 ** j):
                 bucket = buckets[r]
-                encrypted_blocks += [self._encrypt_block(block) for block in bucket.items()]
+                encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
             self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks))
@@ -160,7 +151,7 @@ class SubORAMClient:
             encrypted_blocks = []
             for r in range(start, end):
                 bucket = buckets[r]
-                encrypted_blocks += [self._encrypt_block(block) for block in bucket.items()]
+                encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
             self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + end, np.array(encrypted_blocks))
@@ -169,47 +160,20 @@ class SubORAMClient:
             encrypted_blocks_2 = []
             for r in range(start, 2 ** j):
                 bucket = buckets[r]
-                encrypted_blocks_1 += [self._encrypt_block(block) for block in bucket.items()]
+                encrypted_blocks_1 += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks_1.append(self._create_dummy_block())
 
             for r in range(0, end):
                 bucket = buckets[r]
-                encrypted_blocks_2 += [self._encrypt_block(block) for block in bucket.items()]
+                encrypted_blocks_2 += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks_2.append(self._create_dummy_block())
                 
             self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks_1))
             self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + end, np.array(encrypted_blocks_2))
 
-    def _encrypt_block(self, block):
-        byte_block = json.dumps(block).encode("utf-8")
-        padded_block = self._pad_block(byte_block)
-        encrypted_block = self._encrypt(padded_block)
-        return encrypted_block
-
-    def _decrypt_block(self, block):
-        padded_decrypted_byte_block = self._decrypt(block)
-        decrypted_byte_block = self._depad_block(padded_decrypted_byte_block)
-        decrypted_block = decrypted_byte_block.decode("utf-8")
-        a, data = json.loads(decrypted_block)
-        return a, data
-        
-    def _pad_block(self, block):
-        if len(block) * 8 > self.B:
-            raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
-        if len(block) * 8 == self.B:
-            return block
-        return block + b"\x01" + b"\x00" * (self.B - len(block) - 1)
-
-    def _depad_block(self, block):
-        return block.rstrip(b"\x00").removesuffix(b"\x01")
-
-    def _encrypt(self, data, identity=True):
-        return self.f.encrypt(data) if not identity else data
-
-    def _decrypt(self, data, identity=True):
-        return self.f.decrypt(data) if not identity else data
+    
     
     # block is now (a, (d, p_0, ..., p_l))
     def read_range(self, a):
@@ -218,20 +182,16 @@ class SubORAMClient:
             a must be a multiple of 2^i
         """
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + 2 ** self.i}
-        try:
-            p = self.position[a]
-        except:
-            print(f'a: {a}')
-            print(f'lenposition: {len(self.position)}')
-            # print(f'position: {self.position}')
-        p_prime = self._uniform_random(self.N - 1)
+        p = self.position[a]
+        p_prime = uniform_random(self.N - 1)
         self.position[a] = p_prime
         for j in range(self.h + 1):
             V = self._read_buckets(j, p, 2 ** self.i)
             for B in V.items():
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result:
                     result.update([B])
-        return (copy.deepcopy(result), p_prime)
+        # return (copy.deepcopy(result), p_prime)
+        return (result, p_prime)
             
 
     def batch_evict(self, k):

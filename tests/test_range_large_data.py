@@ -1,6 +1,7 @@
 import random
 import time
 import numpy as np
+from naive_roram import Client as NaiveRangeClient
 from roram import Client as RORAMClient
 
 def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
@@ -13,7 +14,7 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
 
     # initialize with '0's
     print('writing all zeros')
-    client.access(0, N, "write", truth)
+    client.nice_write(0, N, truth)
 
     # make num_writes random range writes
     print(f'starting {num_writes} write queries')
@@ -23,7 +24,7 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
         end = random.randint(a, N - 1) # inclusive
         r = end - a + 1
         slice = np.random.randint(0, 10, r).astype(str) # r-size array of chars 0-9
-        client.access(a, r, "write", slice)
+        client.nice_write(a, r, slice)
         truth[a:end+1] = slice
 
         if (i + 1) % 5 == 0:
@@ -54,6 +55,7 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
 
 def test_large_both():
     N, Z, B = 1000, 4, 8192
+    test_large_dataset(NaiveRangeClient, "Naive Range ORAM", num_writes=10, num_reads=10, N=N, Z=Z, B=B)
     test_large_dataset(RORAMClient, "RORAM", num_writes=10, num_reads=10, N=N, Z=Z, B=B)
     print("All large-data tests passed.")
 

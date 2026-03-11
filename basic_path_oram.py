@@ -1,9 +1,8 @@
-import random
 import math
-import json
 import sys
 import numpy as np
 from cryptography.fernet import Fernet
+from utils import uniform_random, encrypt_block, decrypt_block
 
 class Server:
     def __init__(self, data):
@@ -47,7 +46,7 @@ class Client:
         # a is block id
         x = self.position[a]
         # assign new randomized path for a
-        self.position[a] = self._uniform_random(2 ** self.L - 1)
+        self.position[a] = uniform_random(2 ** self.L - 1)
         
         # reads each bucket on the path and adds to stash
         for l in range(self.L + 1):
@@ -87,18 +86,14 @@ class Client:
         # returns an initialized position map
         position = {}
         for i in range(self.N):
-            position[i] = self._uniform_random(2 ** self.L - 1) # 0 to num leafs - 1 (inclusive)
+            position[i] = uniform_random(2 ** self.L - 1) # 0 to num leafs - 1 (inclusive)
         return position
-    
-    def _uniform_random(self, n):
-        # return a uniform random int from 0 to n inclusive
-        return random.randint(0, n)
     
     def _generate_initial_data(self):
         return [self._create_dummy_block() for _ in range(self._total_N)]
     
     def _create_dummy_block(self):
-        return self._encrypt_block((-1, ""))
+        return encrypt_block((-1, ""), self.B, self.f)
 
     def _P(self, x, l):
         return (2 ** l - 1 + x // 2 ** (self.L - l)) * self.Z
@@ -107,7 +102,7 @@ class Client:
         bucket_blocks = {}
         for i in range(self.Z):
             encrypted_block = self.server.read_block(bucket + i)
-            a, data = self._decrypt_block(encrypted_block)
+            a, data = decrypt_block(encrypted_block, self.f)
 
             if a != -1: # not dummy
                 bucket_blocks[a] = data
@@ -117,37 +112,9 @@ class Client:
     # _write_bucket write data back to bucket and pads with dummy blocks if needed
     def _write_bucket(self, bucket, data):
         for i, block in enumerate(data.items()):
-            encrypted_block = self._encrypt_block(block)
+            encrypted_block = encrypt_block(block, self.B, self.f)
             self.server.write_block(bucket + i, encrypted_block)
         for i in range(len(data), self.Z):
             encrypted_block = self._create_dummy_block()
             self.server.write_block(bucket + i, encrypted_block)
 
-    def _encrypt_block(self, block): # block should be (a, data)
-        byte_block = json.dumps(block).encode("utf-8")
-        padded_block = self._pad_block(byte_block)
-        encrypted_block = self._encrypt(padded_block)
-        return encrypted_block
-
-    def _decrypt_block(self, block):
-        padded_decrypted_byte_block = self._decrypt(block)
-        decrypted_byte_block = self._depad_block(padded_decrypted_byte_block)
-        decrypted_block = decrypted_byte_block.decode("utf-8")
-        a, data = json.loads(decrypted_block)
-        return a, data
-    
-    def _pad_block(self, block):
-        if len(block) * 8 > self.B:
-            raise ValueError(f"Block size {len(block)} is larger than B={self.B}")
-        if len(block) * 8 == self.B:
-            return block
-        return block + b"\x01" + b"\x00" * (self.B - len(block) - 1)
-
-    def _depad_block(self, block):
-        return block.rstrip(b"\x00").removesuffix(b"\x01")
-
-    def _encrypt(self, data, identity=True):
-        return self.f.encrypt(data) if not identity else data
-
-    def _decrypt(self, data, identity=True):
-        return self.f.decrypt(data) if not identity else data
