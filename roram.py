@@ -190,9 +190,7 @@ class SubORAMClient:
             for B in V.items():
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result:
                     result.update([B])
-        # return (copy.deepcopy(result), p_prime)
-        return (result, p_prime)
-            
+        return (copy.deepcopy(result), p_prime)
 
     def batch_evict(self, k):
         """
