@@ -55,8 +55,8 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
 
 def test_large_both():
     N, Z, B = 1000, 4, 8192
-    test_large_dataset(NaiveRangeClient, "Naive Range ORAM", num_writes=10, num_reads=10, N=N, Z=Z, B=B)
-    test_large_dataset(RORAMClient, "RORAM", num_writes=10, num_reads=10, N=N, Z=Z, B=B)
+    test_large_dataset(NaiveRangeClient, "Naive Range ORAM", num_writes=100, num_reads=100, N=N, Z=Z, B=B)
+    test_large_dataset(RORAMClient, "RORAM", num_writes=100, num_reads=100, N=N, Z=Z, B=B)
     print("All large-data tests passed.")
 
 

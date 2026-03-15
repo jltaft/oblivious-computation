@@ -21,7 +21,6 @@ class Client:
     def nice_read(self, a, r):
         data = self.access(a, r, "read")
         return [data[i][0] for i in range(a, a + r)]
-        #if i is not in D then KeyError
     
     def nice_write(self, a, r, D_star):
         data = self.access(a, r, "write", D_star)
@@ -37,15 +36,13 @@ class Client:
             if a_prime + 2 ** i - 1 >= self.N:
                 break
             Bs, p_prime = self.R[i].read_range(a_prime) # read_range returns (result (copied), p_prime)
-            # All blocks in this aligned range share the same path (same position) so they are all in D
             for j in range(2 ** i):
-                Bs[a_prime + j][1 + i] = p_prime
+                Bs[a_prime + j][1 + i] = (p_prime + j) % self.N
             D = D | Bs
-
+        
         # update if write
         if op == "write":
             for j in range(r):
-                #has a KeyError if block was evicted to an unread path
                 D[a + j][0] = D_star[j]
         # Update stashes and evict in each tree
         for j in range(self.l + 1):                
@@ -65,14 +62,14 @@ class Client:
             return D
 
     def _initialize_sub_orams(self):
-        # initialize positions: in tree R_i, all blocks in the same aligned range of size 2^i share one path
+        # initialize positions
         positions = []
         for i in range(self.l + 1):
             position = []
             for j in range(0, self.N, 2 ** i):
-                p = uniform_random(self.N - 1)
-                for _ in range(2 ** i):
-                    position.append(p)
+                position.append(uniform_random(self.N - 1))
+                for k in range(1, 2 ** i):
+                    position.append((position[j] + k) % self.N)
             positions.append(position)
         
         data = {}
@@ -187,8 +184,7 @@ class SubORAMClient:
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + 2 ** self.i}
         p = self.position[a]
         p_prime = uniform_random(self.N - 1)
-        for k in range(2 ** self.i):
-            self.position[a + k] = p_prime
+        self.position[a] = p_prime
         for j in range(self.h + 1):
             V = self._read_buckets(j, p, 2 ** self.i)
             for B in V.items():
