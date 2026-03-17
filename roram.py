@@ -47,14 +47,6 @@ class Client:
                     Bs[a_prime + j][1 + i] = (p_prime + j) % self.N
                 except:
                     raise
-                    # try:
-                    #     Bs[a_prime + j + 2**j][1 + i] = (p_prime + j) % self.N
-                    # except:
-                    #     print(f'Bs: {Bs}')
-                    #     print(f'i: {i}')
-                    #     print(f'a_prime: {a_prime}')
-                        
-                    #     raise
 
             D = D | Bs
         try:
@@ -147,25 +139,7 @@ class SubORAMClient:
     def _create_dummy_block(self):
         return encrypt_block((-1, "dummy!"), self.B, self.f)
 
-    def _read_buckets(self, j, start, length, p=None):
-        # rs = {t % 2 ** j for t in range(start, start + length)}
-        # decrypted_blocks = {}
-        # for r in rs:
-        #     encrypted_blocks = self.server.read_slice(2 ** j - 1 + r, 2 ** j -1 + r + 1)
-        #     for encrypted_block in encrypted_blocks:
-        #         a, data = decrypt_block(encrypted_block, self.f)
-        #         if a == -1:
-        #             continue
-        #         try:
-        #             assert a not in decrypted_blocks
-        #         except:
-        #             print(f'old: {(a, decrypted_blocks[a])}')
-        #             print(f'new: {(a, data)}')
-        #             raise
-        #         if self._is_valid((a, data)): # not dummy and not already there
-        #             decrypted_blocks[a] = data
-        # return decrypted_blocks
-    
+    def _read_buckets(self, j, start, length):
         start = start % 2 ** j
         end = (start + length) % 2 ** j
         assert (start != end or length >= 2 ** j)
@@ -178,11 +152,12 @@ class SubORAMClient:
             encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + end).tolist()
         else:
             encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j).tolist() + self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + end).tolist()
-        decrypted_blocks = {}
+        decrypted_blocks = []
         for encrypted_block in encrypted_blocks:
             block = decrypt_block(encrypted_block, self.f)
-            if self._is_valid(block) and block[0] not in decrypted_blocks: # not dummy and not already there
-                decrypted_blocks.update([block])
+            # if self._is_valid(block) and block[0] not in decrypted_blocks: # not dummy and not already there
+            if self._is_valid(block) and block[0] not in decrypted_blocks:
+                decrypted_blocks.append(block)
         return decrypted_blocks
 
     # pads with dummy blocks if needed
@@ -232,9 +207,9 @@ class SubORAMClient:
         p_prime = uniform_random(self.N - 1)
         self.position[a] = p_prime
         for j in range(self.h + 1):
-            V = self._read_buckets(j, p, 2 ** self.i, p)
-            for B in V.items():
-                if a <= B[0] < a + 2 ** self.i and B[0] not in result:
+            V = self._read_buckets(j, p, 2 ** self.i)
+            for B in V:
+                if a <= B[0] < a + 2 ** self.i and B[0] not in result and B[1][self.i + 1] == (p + B[0] - a) % self.N:
                     result.update([B])
         return (copy.deepcopy(result), p_prime)
         # return (result, p_prime)
@@ -242,32 +217,11 @@ class SubORAMClient:
     def batch_evict(self, k):
         cnt = self.cnt[0]
         for j in range(self.h + 1):
-            V = self._read_buckets(j, cnt, k, self.position[cnt])
-            for B in V.items():
-                if B[0] not in self.S.keys():
+            V = self._read_buckets(j, cnt, k)
+            for B in V:
+                a0 = (B[0] // (2 ** self.i)) * (2 ** self.i)
+                if B[0] not in self.S.keys() and B[1][self.i + 1] == (self.position[a0] + B[0] - a0) % self.N:
                     self.S.update([B])
-
-        # for j in range(self.h, -1, -1):
-        #     rs = {t % 2 ** j for t in range(cnt, cnt + k)}
-        #     for r in rs:
-        #         S_prime = {}
-        #         for a, data in self.S.items():
-        #             # print(data)
-        #             if data[self.i + 1] % 2 ** j == r:
-        #                 S_prime[a] = data
-        #                 if len(S_prime) == self.Z:
-        #                     break
-        #         for a in S_prime.keys():
-        #             del self.S[a]
-        #         bucket = S_prime
-        #         # print(f'bucket{bucket}')
-        #         encrypted_bucket = [encrypt_block(block, self.B, self.f) for block in bucket.items()]
-        #         for _ in range(self.Z - len(bucket)):
-        #             encrypted_bucket.append(self._create_dummy_block())
-
-        #         # server.write_slice uses bucket indices, not block indices:
-        #         self.server.write_slice(2 ** j - 1 + r, 2 ** j - 1 + r + 1, np.array(encrypted_bucket))
-                # self.server.data[2 ** j - 1 + r: 2 ** j - 1 + r + self.Z] = np.array(encrypted_bucket)
 
         # evict paths
         v = {j: ([None] * 2 ** j) for j in range(0, self.h + 1)}
