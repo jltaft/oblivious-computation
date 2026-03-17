@@ -14,3 +14,9 @@ class Client:
         for i in range(r):
             self.client.access("write", a + i, D_star[i])
         # return old data here if needed
+
+    def get_seeks(self):
+        return self.client.get_seeks()
+    
+    def reset_seeks(self):
+        self.client.reset_seeks()

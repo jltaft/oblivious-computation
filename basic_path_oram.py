@@ -7,12 +7,21 @@ from utils import uniform_random, encrypt_block, decrypt_block
 class Server:
     def __init__(self, data):
         self.data = data
+        self.ops = 0
     
     def read_block(self, i):
+        self.ops += 1
         return self.data[i]
     
     def write_block(self, i, block):
+        self.ops += 1
         self.data[i] = block
+
+    def get_ops(self):
+        return self.ops
+    
+    def reset_ops(self):
+        self.ops = 0
 
 
 class Client:
@@ -42,6 +51,12 @@ class Client:
         # client initializes dummy data and starts a new server with it
         self.server = Server(np.array(self._generate_initial_data()))
 
+    def get_seeks(self):
+        return self.server.get_ops()
+    
+    def reset_seeks(self):
+        self.server.reset_ops()
+    
     def access(self, op, a, new_data=None):
         # a is block id
         x = self.position[a]

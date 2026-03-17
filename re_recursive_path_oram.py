@@ -8,12 +8,21 @@ from utils import uniform_random, encrypt_block, decrypt_block
 class Server:
     def __init__(self, data):
         self.data = data
+        self.ops = 0
     
     def read_block(self, i):
+        self.ops += 1
         return self.data[i]
     
     def write_block(self, i, block):
+        self.ops += 1
         self.data[i] = block
+
+    def get_ops(self):
+        return self.ops
+    
+    def reset_ops(self):
+        self.ops = 0
     
 def _tree_height(N, Z):
     return int(math.ceil(math.log(max(1, math.ceil(N / Z)), 2)))
@@ -99,6 +108,17 @@ class Client:
 
         # client initializes dummy data and starts a new server with it
         self.server = Server(np.array(self._generate_initial_data()))
+
+    def get_seeks(self):
+        total_seeks = self.server.get_ops()
+        if isinstance(self.position_map, ORAMPositionMap):
+            total_seeks += self.position_map.oram.get_seeks()
+        return total_seeks
+    
+    def reset_seeks(self):
+        if isinstance(self.position_map, ORAMPositionMap):
+            self.position_map.oram.reset_seeks()
+        self.server.reset_ops()
 
     def access(self, op, a, new_data=None, recursive=False, a_block_index=None, string_val_size=None):
         # print(f'before access in oram N={self.N}')

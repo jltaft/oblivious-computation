@@ -28,6 +28,7 @@ def get_data_point(client_classes, writes, reads, N, Z, B):
         truth = np.zeros(N, dtype=int).astype(str)
         client.nice_write(0, N, truth)
 
+        client.reset_seeks()
         start_time = time.time()
         for i in range(writes):
             a, r = write_queries[i]
@@ -47,43 +48,50 @@ def get_data_point(client_classes, writes, reads, N, Z, B):
 
         read_time = time.time() - start_time
         average_read_time = read_time / reads
-        data_point.append((average_write_time, average_read_time))
+        data_point.append((average_write_time, average_read_time, client.get_seeks()))
     return data_point
 
-def get_data(Ns):
+def get_data(Ns, writes, reads):
     Z, B = 4, 8192
     client_classes = [NaiveRangeClient, RORAMClient]
-    basic_write_data = []
-    basic_read_data = []
-    recursive_write_data = []
-    recursive_read_data = []
+    naive_write_data = []
+    naive_read_data = []
+    naive_seeks_data = []
+    roram_write_data = []
+    roram_read_data = []
+    roram_seeks_data = []
     for N in tqdm(Ns):
-        (basic_write_time, basic_read_time), (recursive_write_time, recursive_read_time) = get_data_point(client_classes, 100, 100, N, Z, B)
-        basic_write_data.append(basic_write_time)
-        basic_read_data.append(basic_read_time)
-        recursive_write_data.append(recursive_write_time)
-        recursive_read_data.append(recursive_read_time)
-    return np.array(basic_write_data), np.array(basic_read_data), np.array(recursive_write_data), np.array(recursive_read_data)
+        (naive_write_time, naive_read_time, naive_seeks), (roram_write_time, roram_read_time, roram_seeks) = get_data_point(client_classes, writes, reads, N, Z, B)
+        naive_write_data.append(naive_write_time)
+        naive_read_data.append(naive_read_time)
+        naive_seeks_data.append(naive_seeks)
+
+        roram_write_data.append(roram_write_time)
+        roram_read_data.append(roram_read_time)
+        roram_seeks_data.append(roram_seeks)
+    return np.array(naive_write_data), np.array(naive_read_data), np.array(naive_seeks_data), np.array(roram_write_data), np.array(roram_read_data), np.array(roram_seeks_data)
 
 def plot_data():
     # Ns = np.arange(1_000, 10_000, 1_000) #, 5_000] #10_000] #, 100_000, 1_000_000]
-    # Ns = np.arange(100, 1_000, 100)
-    Ns = np.arange(10, 100, 10)
-    basic_write_data, basic_read_data, recursive_write_data, recursive_read_data = get_data(Ns)
+    Ns = np.arange(10, 51, 20)
+    # Ns = np.arange(10, 100, 10)
+    writes = 100
+    reads = 100
+    naive_access_data, naive_seeks_data, roram_access_data, roram_seeks_data = get_data(Ns, writes, reads)
     plt.subplot(1, 2, 1)
-    plt.title("Average Write Time vs N for Naive Range ORAM and RORAM")
+    plt.title("Average Access Time vs N for Naive Range ORAM and RORAM")
     plt.xlabel("N")
     plt.ylabel("Time (microseconds)")
-    plt.plot(Ns, basic_write_data * 1_000_000, label="Naive") 
-    plt.plot(Ns, recursive_write_data * 1_000_000, label="RORAM")
+    plt.plot(Ns, naive_access_data * 1_000_000, label="Naive") 
+    plt.plot(Ns, roram_access_data * 1_000_000, label="RORAM")
     plt.legend()
 
     plt.subplot(1, 2, 2)
-    plt.title("Average Read Time vs N for Naive Range ORAM and RORAM")
+    plt.title(f"# of seeks vs r for Naive Range ORAM and RORAM")
     plt.xlabel("N")
-    plt.ylabel("Time (microseconds)")
-    plt.plot(Ns, basic_read_data * 1_000_000, label="Naive") 
-    plt.plot(Ns, recursive_read_data * 1_000_000, label="RORAM")
+    plt.ylabel("Seeks")
+    plt.plot(Ns, naive_seeks_data, label="Naive") 
+    plt.plot(Ns, roram_seeks_data, label="RORAM")
     plt.legend()
     plt.show()
 

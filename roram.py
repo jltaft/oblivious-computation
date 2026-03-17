@@ -1,6 +1,5 @@
 import math
 import copy
-import numpy as np
 from cryptography.fernet import Fernet
 from utils import uniform_random, encrypt_block, decrypt_block
 
@@ -17,6 +16,13 @@ class Client:
         self.Z = Z # capacity of each bucket (in blocks)
         self.cnt = [0] # global counter
         self.R = self._initialize_sub_orams()
+
+    def get_seeks(self):
+        return sum([oram.get_seeks() for oram in self.R])
+    
+    def reset_seeks(self):
+        for oram in self.R:
+            oram.reset_seeks()
 
     def nice_read(self, a, r):
         data = self.access(a, r, "read")
@@ -64,7 +70,7 @@ class Client:
             as_to_remove = {Ba for Ba in Rj.S.keys() if a_0 <= Ba < a_0 + len(D)}
             for a_to_remove in as_to_remove:
                 del Rj.S[a_to_remove]
-            Rj.S = Rj.S | copy.deepcopy(D)
+            Rj.S = Rj.S | D #copy.deepcopy(D)
             # Rj.S = Rj.S | D
             # Rj.batch_evict(2 ** (i + 1))
             Rj.batch_evict(len(D))
@@ -95,19 +101,27 @@ class SubORAMServer:
     def __init__(self, data, Z):
         self.data = data
         self.Z = Z
+        self.ops = 0
 
     # i, j are bucket indices not blocks!
     def read_slice(self, i, j): # [i,j)
+        self.ops += 1
         return self.data[i*self.Z:j*self.Z]
     
     # i, j are bucket indices not blocks!
     def write_slice(self, i, j, data): # [i,j)
+        self.ops += 1
         self.data[i*self.Z:j*self.Z] = data
+
+    def get_ops(self):
+        return self.ops
+    
+    def reset_ops(self):
+        self.ops = 0
 
 
 class SubORAMClient:
     def __init__(self, i, cnt, position, data, N, h, B, Z):
-        
         self.i = i # as in R_i
         self.N = N # total # blocks outsourced to server
         self.h = h # height of binary tree
@@ -125,15 +139,21 @@ class SubORAMClient:
         self.f = Fernet(key)
 
         # server
-        self.server = SubORAMServer(np.array([self._create_dummy_block() for _ in range(self.Z * (2 ** (self.h + 1) - 1))]), self.Z)
+        self.server = SubORAMServer([self._create_dummy_block() for _ in range(self.Z * (2 ** (self.h + 1) - 1))], self.Z)
     
+    def get_seeks(self):
+        return self.server.get_ops()
+    
+    def reset_seeks(self):
+        self.server.reset_ops()
+
     def _is_valid(self, block):
         a, data = block
         if a < 0 or a >= self.N:
             return False
-        for i in range(1, len(data)):
-            if data[i] < 0 or data[i] >= self.N:
-                return False
+        # for i in range(1, len(data)):
+        #     if data[i] < 0 or data[i] >= self.N:
+        #         return False
         return True
 
     def _create_dummy_block(self):
@@ -147,16 +167,15 @@ class SubORAMClient:
         if start == end:
             end += 2 ** j
         if length >= 2 ** j:
-            encrypted_blocks = self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j).tolist()
+            encrypted_blocks = self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j)
         elif start <= end:
-            encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + end).tolist()
+            encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + end)
         else:
-            encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j).tolist() + self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + end).tolist()
+            encrypted_blocks = self.server.read_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j) + self.server.read_slice(2 ** j - 1 + 0, 2 ** j - 1 + end)
         decrypted_blocks = []
         for encrypted_block in encrypted_blocks:
             block = decrypt_block(encrypted_block, self.f)
-            # if self._is_valid(block) and block[0] not in decrypted_blocks: # not dummy and not already there
-            if self._is_valid(block) and block[0] not in decrypted_blocks:
+            if self._is_valid(block):
                 decrypted_blocks.append(block)
         return decrypted_blocks
 
@@ -171,7 +190,7 @@ class SubORAMClient:
                 encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
-            self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks))
+            self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + 2 ** j, encrypted_blocks)
         elif start <= end:
             encrypted_blocks = []
             for r in range(start, end):
@@ -179,7 +198,7 @@ class SubORAMClient:
                 encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
-            self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + end, np.array(encrypted_blocks))
+            self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + end, encrypted_blocks)
         else:
             encrypted_blocks_1 = []
             encrypted_blocks_2 = []
@@ -195,10 +214,9 @@ class SubORAMClient:
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks_2.append(self._create_dummy_block())
                 
-            self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j, np.array(encrypted_blocks_1))
-            self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + end, np.array(encrypted_blocks_2))
+            self.server.write_slice(2 ** j - 1 + start, 2 ** j - 1 + 2 ** j, encrypted_blocks_1)
+            self.server.write_slice(2 ** j - 1 + 0, 2 ** j - 1 + end, encrypted_blocks_2)
 
-    
     # block is now (a, (d, p_0, ..., p_l))
     # a must be a multiple of 2^i
     def read_range(self, a):
@@ -211,8 +229,8 @@ class SubORAMClient:
             for B in V:
                 if a <= B[0] < a + 2 ** self.i and B[0] not in result and B[1][self.i + 1] == (p + B[0] - a) % self.N:
                     result.update([B])
-        return (copy.deepcopy(result), p_prime)
-        # return (result, p_prime)
+        # return (copy.deepcopy(result), p_prime)
+        return (result, p_prime)
 
     def batch_evict(self, k):
         cnt = self.cnt[0]
