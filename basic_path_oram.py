@@ -25,7 +25,7 @@ class Server:
 
 
 class Client:
-    def __init__(self, N, L=None, B=2**15, Z=4):
+    def __init__(self, N, L=None, B=2**15, Z=4, initial_data=None):
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
         # height is 0 of tree with just root node
@@ -42,6 +42,9 @@ class Client:
         self.Z = Z # capacity of each bucket (in blocks)
 
         self.S = {} # stash
+        if initial_data is not None:
+            for a in range(N):
+                self.S[a] = initial_data[a]
         self.position = self._initialize_position() # position map
 
         # encryption/decryption
