@@ -3,6 +3,8 @@ import time
 import numpy as np
 from naive_roram import Client as NaiveRangeClient
 from roram import Client as RORAMClient
+import roram
+
 
 def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
     print(f"=== Stress test range large dataset ({label}) ===")
@@ -54,7 +56,7 @@ def test_large_dataset(client_class, label, num_writes, num_reads, N, Z, B):
 
 
 def test_large_both():
-    N, Z, B = 5, 4, 8192
+    N, Z, B = 100, 4, 8192
     # test_large_dataset(NaiveRangeClient, "Naive Range ORAM", num_writes=1000, num_reads=1000, N=N, Z=Z, B=B)
     test_large_dataset(RORAMClient, "RORAM", num_writes=1000, num_reads=1000, N=N, Z=Z, B=B)
     print("All large-data tests passed.")
@@ -62,3 +64,4 @@ def test_large_both():
 
 if __name__ == "__main__":
     test_large_both()
+    roram.print_timings()

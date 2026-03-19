@@ -34,7 +34,8 @@ batch_evict_time = 0
 class Client:
     def __init__(self, N, L=None, B=32768, Z=4, initial_data=None):
         # Timing - to delete
-        # start_time = time.time()
+        start_time = time.time()
+        global client_time
         
         if N <= 0:
             raise ValueError(f"N={N} is not positive")
@@ -49,16 +50,17 @@ class Client:
         self.R = self._initialize_sub_orams(initial_data)
 
         # # Timing - to delete
-        # client_time = start_time - time.time()
+        client_time = time.time() - start_time
 
     def get_seeks(self):
         # Timing - to delete
         start_time = time.time()
+        global get_seeks_time
 
         seeks = sum([oram.get_seeks() for oram in self.R])
 
         # Timing - to delete
-        get_seeks_time = start_time - time.time()
+        get_seeks_time += time.time() - start_time
         return seeks
     
         # return sum([oram.get_seeks() for oram in self.R])
@@ -66,16 +68,18 @@ class Client:
     def reset_seeks(self):
         # Timing - to delete
         start_time = time.time()
+        global reset_seeks_time
 
         for oram in self.R:
             oram.reset_seeks()
 
         # Timing - to delete
-        reset_seeks_time = start_time - time.time()
+        reset_seeks_time += time.time() - start_time
 
     def nice_read(self, a, r):
         # Timing - to delete
         start_time = time.time()
+        global nice_read_time
 
         data = self.access(a, r, "read")
 
@@ -86,11 +90,13 @@ class Client:
         # return [data[i][0] for i in range(a, a + r)]
     
         # Timing - to delete
-        nice_read_time = start_time - time.time()
+        nice_read_time += time.time() - start_time
         return result
     
     def nice_write(self, a, r, D_star):
         start_time = time.time()
+        global nice_write_time
+
         try:
             data = self.access(a, r, "write", D_star)
         except:
@@ -101,11 +107,12 @@ class Client:
         
         # return [data[i][0] for i in range(a, a + r)] # uncomment to return the old data
         # Timing - to delete
-        nice_write_time = start_time - time.time()
+        nice_write_time += time.time() - start_time
 
     def access(self, a, r, op, D_star=None):
         # Timing - to delete
         start_time = time.time()
+        global access_time
 
         if r > self.L:
             raise ValueError(f"Range size r={r} is greater than max range size supported L={self.L}")
@@ -141,7 +148,7 @@ class Client:
             Rj.batch_evict(len(D))
 
         # Timing - to delete
-        access_time = time.time() - start_time
+        access_time += time.time() - start_time
 
         self.cnt[0] += len(D)
         if op == "read":
@@ -150,6 +157,7 @@ class Client:
     def _initialize_sub_orams(self, initial_data):
         # Timing - to delete
         start_time = time.time()
+        global _initialize_sub_orams_time
 
         # initialize positions
         positions = []
@@ -171,7 +179,7 @@ class Client:
         # return R
         
         # Timing - to delete
-        _initialize_sub_orams_time = start_time - time.time()
+        _initialize_sub_orams_time += time.time() - start_time
         
         return [SubORAMClient(i, self.cnt, positions[i], copy.deepcopy(data), self.N, self.h, B=self.B, Z=self.Z) for i in tqdm(range(self.l + 1))]
         # need to move stash to server so that post-initialization there is not too much in stash
@@ -187,11 +195,13 @@ class SubORAMServer:
     def read_slice(self, i, j): # [i,j)
         # Timing - to delete
         start_time = time.time()
+        global read_slice_time
+
         self.ops += 1
 
         # Timing - to delete
         slice = self.data[i*self.Z:j*self.Z]
-        read_slice_time = start_time - time.time()
+        read_slice_time += time.time() - start_time
         return slice
     
         # return self.data[i*self.Z:j*self.Z]
@@ -200,12 +210,13 @@ class SubORAMServer:
     def write_slice(self, i, j, data): # [i,j)
         # Timing - to delete
         start_time = time.time()
+        global write_slice_time
 
         self.ops += 1
         self.data[i*self.Z:j*self.Z] = data
         
         # Timing - to delete
-        write_slice_time = start_time - time.time()
+        write_slice_time += time.time() - start_time
 
     def get_ops(self):
         return self.ops
@@ -239,7 +250,7 @@ class SubORAMClient:
         self.server = SubORAMServer([self._create_dummy_block() for _ in range(self.Z * ((1 << (self.h + 1)) - 1))], self.Z)
         
         # # Timing - to delete
-        # SubORAMClient_time = start_time - time.time()
+        # SubORAMClient_time = time.time() - start_time
         # print("Time to Initialize SubORAMClient:", SubORAMClient_time)
     
     def get_seeks(self):
@@ -260,17 +271,19 @@ class SubORAMClient:
     def _create_dummy_block(self):
         # Timing - to delete
         start_time = time.time()
+        global _create_dummy_block_time
         
         dummy = encrypt_block((-1, "dummy!"), self.B, self.f)
 
         # Timing - to delete
-        _create_dummy_block_time = start_time - time.time()
+        _create_dummy_block_time += time.time() - start_time
 
         return dummy
 
     def _read_buckets(self, j, start, length):
         # Timing - to delete
         start_time = time.time()
+        global _read_buckets_time
 
         start = start % (1 << j)
         end = (start + length) % (1 << j)
@@ -292,13 +305,14 @@ class SubORAMClient:
 
         
         # Timing - to delete
-        _read_buckets_time = start_time - time.time()
+        _read_buckets_time += time.time() - start_time
         return decrypted_blocks
 
     # pads with dummy blocks if needed
     def _write_buckets(self, j, start, length, buckets):
         # Timing - to delete
         start_time = time.time()
+        global _write_buckets_time
 
         start = start % (1 << j)
         end = (start + length) % (1 << j)
@@ -337,13 +351,14 @@ class SubORAMClient:
             self.server.write_slice((1 << j) - 1 + 0, (1 << j) - 1 + end, encrypted_blocks_2)
         
         # Timing - to delete
-        _write_buckets_time = start_time - time.time()
+        _write_buckets_time += time.time() - start_time
 
     # block is now (a, (d, p_0, ..., p_l))
     # a must be a multiple of 2^i
     def read_range(self, a):
         # Timing - to delete
         start_time = time.time()
+        global read_range_time
         
         result = {B[0]:B[1] for B in self.S.items() if a <= B[0] < a + (1 << self.i)}
         p = self.position[a]
@@ -357,7 +372,7 @@ class SubORAMClient:
         # return (copy.deepcopy(result), p_prime)
 
         # Timing - to delete
-        read_range_time = start_time - time.time()
+        read_range_time += time.time() - start_time
         
         return (result, p_prime)
 
@@ -401,6 +416,7 @@ class SubORAMClient:
 
         # Timing - to delete
         start_time = time.time()
+        global batch_evict_time
     
         cnt = self.cnt[0]
 
@@ -454,17 +470,16 @@ class SubORAMClient:
             self._write_buckets(j, cnt, k, v[j])
 
         # Timing - to delete
-        batch_evict_time = time.time() - start_time
-        print_timings()
+        batch_evict_time += time.time() - start_time
 
 def print_timings():
-    # print("Execution time to initialize Client: ", client_time)
-    print("Execution time for Client.get_seeks():", get_seeks_time)
-    print("Execution time for Client.reset_seeks(): ", reset_seeks_time)
+    print("Execution time to initialize Client: ", client_time)
+    # print("Execution time for Client.get_seeks():", get_seeks_time)
+    # print("Execution time for Client.reset_seeks(): ", reset_seeks_time)
     print("Execution time for Client.nice_read(): ", nice_read_time)
     print("Execution time for Client.nice_write(): ", nice_write_time)
     print("Execution time for Client.access(): ", access_time)
-    print("Execution time for Client._initialize_sub_orams(): ", _initialize_sub_orams_time)
+    # print("Execution time for Client._initialize_sub_orams(): ", _initialize_sub_orams_time)
     print("Execution time for SubORAMServer.read_slice(): ", read_slice_time)
     print("Execution time for SubORAMServer.write_slice(): ", write_slice_time)
     print("Execution time for SubORAMClient._create_dummy_block(): ", _create_dummy_block_time)
