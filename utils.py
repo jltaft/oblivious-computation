@@ -22,13 +22,17 @@ def _encrypt(data, f, identity=True):
 def _decrypt(data, f, identity=True):
     return f.decrypt(data) if not identity else data
 
-def encrypt_block(block, B, f):
+def encrypt_block(block, B, f, test_mode=True):
+    if test_mode:
+        return block
     byte_block = json.dumps(block).encode("utf-8")
     padded_block = pad_block(byte_block, B)
     encrypted_block = _encrypt(padded_block, f)
     return encrypted_block
 
-def decrypt_block(block, f):
+def decrypt_block(block, f, test_mode=True):
+    if test_mode:
+        return block
     padded_decrypted_byte_block = _decrypt(block, f)
     decrypted_byte_block = depad_block(padded_decrypted_byte_block)
     decrypted_block = decrypted_byte_block.decode("utf-8")

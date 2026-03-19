@@ -1,6 +1,5 @@
 import math
 import sys
-import numpy as np
 from cryptography.fernet import Fernet
 from utils import uniform_random, encrypt_block, decrypt_block
 
@@ -52,7 +51,7 @@ class Client:
         self.f = Fernet(key)
 
         # client initializes dummy data and starts a new server with it
-        self.server = Server(np.array(self._generate_initial_data()))
+        self.server = Server(self._generate_initial_data())
 
     def get_seeks(self):
         return self.server.get_ops()
@@ -124,7 +123,6 @@ class Client:
 
             if a != -1: # not dummy
                 bucket_blocks[a] = data
-
         return bucket_blocks
 
     # _write_bucket write data back to bucket and pads with dummy blocks if needed

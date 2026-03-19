@@ -6,6 +6,8 @@ from tqdm import tqdm
 from naive_roram import Client as NaiveRangeClient
 from roram import Client as RORAMClient
 
+power_of_two = 15
+
 def get_data(client_classes, rs, num_reads, N, Z, B):
     access_datas = []
     seeks_datas = []
@@ -43,7 +45,6 @@ def get_data(client_classes, rs, num_reads, N, Z, B):
 
 
 def plot_data():
-    power_of_two = 15
     N, Z, B = 2 ** power_of_two, 4, 8192
     rs = np.array([2 ** i for i in range(power_of_two)])
     num_reads = 1

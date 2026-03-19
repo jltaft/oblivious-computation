@@ -3,6 +3,8 @@ import copy
 from cryptography.fernet import Fernet
 from utils import uniform_random, encrypt_block, decrypt_block
 
+test_mode = False
+
 class Client:
     def __init__(self, N, L=None, B=32768, Z=4, initial_data=None):
         if N <= 0:
@@ -159,6 +161,8 @@ class SubORAMClient:
         return True
 
     def _create_dummy_block(self):
+        if test_mode:
+            return (-1, "dummy!")
         return encrypt_block((-1, "dummy!"), self.B, self.f)
 
     def _read_buckets(self, j, start, length):
@@ -174,6 +178,11 @@ class SubORAMClient:
             encrypted_blocks = self.server.read_slice((1 << j) - 1 + start, (1 << j) - 1 + end)
         else:
             encrypted_blocks = self.server.read_slice((1 << j) - 1 + start, (1 << j) - 1 + (1 << j)) + self.server.read_slice((1 << j) - 1 + 0, (1 << j) - 1 + end)
+        
+        # speedup for testing (don't use IRL)
+        if test_mode:
+            return [b for b in encrypted_blocks if self._is_valid(b)]
+        
         decrypted_blocks = []
         for encrypted_block in encrypted_blocks:
             block = decrypt_block(encrypted_block, self.f)
@@ -189,7 +198,12 @@ class SubORAMClient:
             encrypted_blocks = []
             for r in range(0, (1 << j)):
                 bucket = buckets[r]
-                encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
+                # speedup for testing (don't use IRL)
+                if test_mode:
+                    encrypted_blocks += list(buckets[r].items())
+                    # encrypted_blocks += [block for block in bucket.items()]
+                else:
+                    encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
             self.server.write_slice((1 << j) - 1 + 0, (1 << j) - 1 + (1 << j), encrypted_blocks)
@@ -197,7 +211,10 @@ class SubORAMClient:
             encrypted_blocks = []
             for r in range(start, end):
                 bucket = buckets[r]
-                encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
+                if test_mode:
+                    encrypted_blocks += list(buckets[r].items())
+                else:
+                    encrypted_blocks += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks.append(self._create_dummy_block())
             self.server.write_slice((1 << j) - 1 + start, (1 << j) - 1 + end, encrypted_blocks)
@@ -206,13 +223,19 @@ class SubORAMClient:
             encrypted_blocks_2 = []
             for r in range(start, (1 << j)):
                 bucket = buckets[r]
-                encrypted_blocks_1 += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
+                if test_mode:
+                    encrypted_blocks_1 += list(buckets[r].items())
+                else:
+                    encrypted_blocks_1 += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks_1.append(self._create_dummy_block())
 
             for r in range(0, end):
                 bucket = buckets[r]
-                encrypted_blocks_2 += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
+                if test_mode:
+                    encrypted_blocks_2 += list(buckets[r].items())
+                else:
+                    encrypted_blocks_2 += [encrypt_block(block, self.B, self.f) for block in bucket.items()]
                 for _ in range(self.Z - len(bucket)):
                     encrypted_blocks_2.append(self._create_dummy_block())
                 
