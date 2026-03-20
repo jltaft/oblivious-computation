@@ -293,6 +293,8 @@ class SubORAMClient:
     #         self._write_buckets(j, cnt, k, v[j])
 
 
+    # disclaimer: this is an optimized batch evict given by AI!
+    # this keeps the internal logic the same but speeds it up
     def batch_evict(self, k):
         cnt = self.cnt[0]
 
@@ -303,6 +305,7 @@ class SubORAMClient:
                 a0 = (a // (1 << self.i)) * (1 << self.i)
                 if a not in self.S and data[self.i + 1] == (self.position[a0] + a - a0) % self.N:
                     self.S[a] = data
+
 
         # Evict paths: bottom-up, grouping stash blocks once per level
         v = {j: ([None] * (1 << j)) for j in range(self.h + 1)}
